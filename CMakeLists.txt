@@ -6,7 +6,6 @@ set(CMAKE_SYSTEM_NAME Generic)
 set(CMAKE_SYSTEM_VERSION 1)
 cmake_minimum_required(VERSION 3.22)
 
-
 # You must set these by yourself
 set(STD_PERIPH_LIB    $ENV{HOME}/dev/stm32/StandardPeripheralLibrary/STM32F10x_StdPeriph_Lib_V3.6.0)
 set(TOOLCHAIN_PATH    $ENV{HOME}/dev/stm32/arm-gnu-toolchain-13.3.rel1-x86_64-arm-none-eabi)
@@ -15,7 +14,6 @@ set(ADAPTER_CFG       /usr/share/openocd/scripts/interface/cmsis-dap.cfg)
 set(BOARD_CFG         /usr/share/openocd/scripts/target/stm32f1x.cfg)
 set(DEVICE_DEFINE     STM32F10X_MD)
 set(STARTUP_CODE      startup_stm32f10x_md.s)
-
 
 # Specify cross-compilers and tools.
 set(TOOLCHAIN_PREFIX      arm-none-eabi-)
@@ -30,12 +28,10 @@ set(CMAKE_SIZE            ${TOOLCHAIN_PATH}/bin/${TOOLCHAIN_PREFIX}size)
 
 set(CMAKE_TRY_COMPILE_TARGET_TYPE STATIC_LIBRARY)
 
-
 # Project settings.
 project(Template C CXX ASM)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_C_STANDARD 11)
-
 
 # Build type.
 if ("${CMAKE_BUILD_TYPE}" STREQUAL "Release")
@@ -51,7 +47,6 @@ else ()
     message(STATUS "Minimal optimization, debug info included")
     add_compile_options(-Og -g)
 endif ()
-
 
 # Sources and includes.
 include_directories(
@@ -95,7 +90,6 @@ set(USER_SOURCES
 
 add_definitions(-DDEBUG -DUSE_STDPERIPH_DRIVER -D${DEVICE_DEFINE})
 
-
 # Compile options.
 add_compile_options(-mcpu=cortex-m3 -mthumb -mthumb-interwork)
 add_compile_options(-ffunction-sections -fdata-sections -fno-common -fmessage-length=0)
@@ -115,13 +109,11 @@ add_compile_options($<$<COMPILE_LANGUAGE:ASM>:-x$<SEMICOLON>assembler-with-cpp>)
 # Uncomment to mitigate c++17 absolute addresses warnings.
 #set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-register")
 
-
 # Link options.
 add_link_options(-T ${LINKER_SCRIPT})
 add_link_options(-Wl,-gc-sections,--print-memory-usage,-Map=${PROJECT_BINARY_DIR}/${PROJECT_NAME}.map)
 add_link_options(-mcpu=cortex-m3 -mthumb -mthumb-interwork)
 add_link_options(-specs=nano.specs)
-
 
 # Build files.
 add_executable(${PROJECT_NAME}.elf ${USER_SOURCES} ${LIBRARY_SOURCES} ${LINKER_SCRIPT})
@@ -140,16 +132,25 @@ add_custom_command(TARGET ${PROJECT_NAME}.elf POST_BUILD
         COMMAND ${CMAKE_OBJCOPY} -Obinary $<TARGET_FILE:${PROJECT_NAME}.elf> ${BIN_FILE}
         COMMENT "Building ${HEX_FILE}\nBuilding ${BIN_FILE}")
 
-
-# Add a custom target that flash binary to STM32 using openocd
-add_custom_target(flash
+# Add a custom target that flash hex file to STM32 using openocd
+add_custom_target(flash-hex
+        DEPENDS ${PROJECT_NAME}.elf
         COMMAND openocd -f ${ADAPTER_CFG} -f ${BOARD_CFG} -c init -c halt -c "flash write_image erase ${HEX_FILE}" -c reset -c shutdown
-        #COMMAND openocd -f ${ADAPTER_CFG} -f ${BOARDCFG} -c init -c "reset halt" -c "sleep 100" -c wait_halt 2" -c "flash write_image erase ${BIN_FILE}" -c "reset run" -c shutdown
+        #COMMAND openocd -f ${ADAPTER_CFG} -f ${BOARDCFG} -c init -c "reset halt" -c "sleep 100" -c wait_halt 2" -c "flash write_image erase ${HEX_FILE}" -c "reset run" -c shutdown
         COMMENT "Flashing ${HEX_FILE} to STM32")
 
+# Add a custom target that flash bin file to STM32 using openocd
+add_custom_target(flash-bin
+        DEPENDS ${PROJECT_NAME}.elf
+        COMMAND openocd -f ${ADAPTER_CFG} -f ${BOARD_CFG} -c init -c halt -c "flash write_image erase ${BIN_FILE} 0x08000000" -c reset -c shutdown
+        COMMENT "Flashing ${HEX_FILE} to STM32")
+
+# Add a custom target that erase STM32 using openocd
+add_custom_target(erase
+        COMMAND openocd -f ${ADAPTER_CFG} -f ${BOARD_CFG} -c init -c halt -c "stm32f1x mass_erase 0" -c halt -c shutdown
+        COMMENT "Erasing STM32")
 
 #set(CMAKE_ASM_FLAGS      "${CMAKE_C_FLAGS} -x assembler-with-cpp -MMD -MP")
 #set(CMAKE_CXX_FLAGS      "${CMAKE_C_FLAGS} -fno-rtti -fno-exceptions -fno-threadsafe-statics")
 #set(CMAKE_C_LINK_FLAGS   "${CMAKE_C_LINK_FLAGS} -Wl,--start-group -lc -lm -Wl,--end-group")
 #set(CMAKE_CXX_LINK_FLAGS "${CMAKE_C_LINK_FLAGS} -Wl,--start-group -lstdc++ -lsupc++ -Wl,--end-group")
-
