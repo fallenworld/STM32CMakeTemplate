@@ -11,20 +11,19 @@ static inline uint32_t gpiox_to_apb2_periph(GPIO_TypeDef* gpiox)
 {
     if (gpiox == GPIOA)
         return RCC_APB2Periph_GPIOA;
-    else if (gpiox == GPIOB)
+    if (gpiox == GPIOB)
         return RCC_APB2Periph_GPIOB;
-    else if (gpiox == GPIOC)
+    if (gpiox == GPIOC)
         return RCC_APB2Periph_GPIOC;
-    else if (gpiox == GPIOD)
+    if (gpiox == GPIOD)
         return RCC_APB2Periph_GPIOD;
-    else if (gpiox == GPIOE)
+    if (gpiox == GPIOE)
         return RCC_APB2Periph_GPIOE;
-    else if (gpiox == GPIOF)
+    if (gpiox == GPIOF)
         return RCC_APB2Periph_GPIOF;
-    else if (gpiox == GPIOG)
+    if (gpiox == GPIOG)
         return RCC_APB2Periph_GPIOG;
-    else
-        return 0;
+    return 0;
 }
 
 static inline void delay_us(uint32_t us)
