@@ -13,6 +13,8 @@ set(TOOLCHAIN_PATH    $ENV{HOME}/dev/stm32/arm-gnu-toolchain-13.3.rel1-x86_64-ar
 set(LINKER_SCRIPT     ${CMAKE_SOURCE_DIR}/STM32F103C8TX_FLASH.ld)
 set(ADAPTER_CFG       /usr/share/openocd/scripts/interface/cmsis-dap.cfg)
 set(BOARD_CFG         /usr/share/openocd/scripts/target/stm32f1x.cfg)
+set(DEVICE_DEFINE     STM32F10X_MD)
+set(STARTUP_CODE      startup_stm32f10x_md.s)
 
 
 # Specify cross-compilers and tools.
@@ -62,7 +64,7 @@ include_directories(
 set(LIBRARY_SOURCES
         ${STD_PERIPH_LIB}/Libraries/CMSIS/CM3/CoreSupport/core_cm3.c
         ${STD_PERIPH_LIB}/Libraries/CMSIS/CM3/DeviceSupport/ST/STM32F10x/system_stm32f10x.c
-        ${STD_PERIPH_LIB}/Libraries/CMSIS/CM3/DeviceSupport/ST/STM32F10x/startup/TrueSTUDIO/startup_stm32f10x_md.s
+        ${STD_PERIPH_LIB}/Libraries/CMSIS/CM3/DeviceSupport/ST/STM32F10x/startup/TrueSTUDIO/${STARTUP_CODE}
         ${STD_PERIPH_LIB}/Libraries/STM32F10x_StdPeriph_Driver/src/misc.c
         ${STD_PERIPH_LIB}/Libraries/STM32F10x_StdPeriph_Driver/src/stm32f10x_adc.c
         ${STD_PERIPH_LIB}/Libraries/STM32F10x_StdPeriph_Driver/src/stm32f10x_bkp.c
@@ -91,7 +93,7 @@ set(LIBRARY_SOURCES
 set(USER_SOURCES
         src/main.c)
 
-add_definitions(-DDEBUG -DUSE_STDPERIPH_DRIVER -DSTM32F10X_MD)
+add_definitions(-DDEBUG -DUSE_STDPERIPH_DRIVER -D${DEVICE_DEFINE})
 
 
 # Compile options.
