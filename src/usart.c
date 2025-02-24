@@ -47,3 +47,12 @@ void usart_send_byte(USART_TypeDef *usart_x, uint8_t byte)
     USART_SendData(usart_x, byte);
     while (USART_GetFlagStatus(usart_x, USART_FLAG_TXE) == RESET) {}
 }
+
+void usart_send_str(USART_TypeDef *usart_x, const char *str)
+{
+    while (*str)
+    {
+        usart_send_byte(usart_x, *str);
+        ++str;
+    }
+}

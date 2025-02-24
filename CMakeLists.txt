@@ -86,10 +86,12 @@ set(LIBRARY_SOURCES
         ${STD_PERIPH_LIB}/Project/STM32F10x_StdPeriph_Template/stm32f10x_it.c)
 
 set(USER_SOURCES
+        src/syscalls.c
         src/main.c
         src/delay.c
         src/gpio.c
-        src/usart.c)
+        src/usart.c
+        src/debug.c)
 
 add_definitions(-DDEBUG -DUSE_STDPERIPH_DRIVER -D${DEVICE_DEFINE})
 
