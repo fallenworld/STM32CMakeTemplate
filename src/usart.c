@@ -56,3 +56,14 @@ void usart_send_str(USART_TypeDef *usart_x, const char *str)
         ++str;
     }
 }
+
+bool usart_has_data(USART_TypeDef *usart_x)
+{
+    return USART_GetFlagStatus(usart_x, USART_FLAG_RXNE) == SET;
+}
+
+uint8_t usart_wait_byte(USART_TypeDef *usart_x)
+{
+    while (!usart_has_data(usart_x)) {}
+    return USART_ReceiveData(usart_x);
+}

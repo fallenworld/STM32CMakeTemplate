@@ -6,6 +6,7 @@
 #define __STM32_H__
 
 #include <stdarg.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include "stm32f10x.h"
 
@@ -20,6 +21,8 @@ void gpio_init(GPIO_TypeDef *gpiox, uint16_t pins, GPIOMode_TypeDef mode);
 void usart_init(USART_TypeDef *usartx);
 void usart_send_byte(USART_TypeDef *usart_x, uint8_t byte);
 void usart_send_str(USART_TypeDef *usart_x, const char *str);
+bool usart_has_data(USART_TypeDef *usart_x);
+uint8_t usart_wait_byte(USART_TypeDef *usart_x);
 
 /* debug.c */
 void debug_init(USART_TypeDef *usart_x);
