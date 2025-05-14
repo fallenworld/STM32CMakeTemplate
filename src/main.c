@@ -2,14 +2,16 @@
  * STM32 main entry point.
  */
 
-#include "stm32f10x.h"
-#include "helpers.h"
+#include "stm32.h"
+
 
 int main(void)
 {
+    NVIC_PriorityGroupConfig(NVIC_PriorityGroup_2);
+    DEBUG_INIT(USART1);
+
     while (1)
     {
-        delay_ms(100);
+
     }
 }
-
