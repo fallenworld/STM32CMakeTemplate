@@ -7,6 +7,36 @@
 static USART_TypeDef *debug_usart = NULL;
 static char print_buffer[128];
 
+struct gpio_info
+{
+    GPIO_TypeDef *gpio;
+    const char *name;
+    uint32_t periph;
+    uint8_t port_source;
+};
+
+static const struct gpio_info gpio_info_list[] =
+{
+    {GPIOA, "GPIOA", RCC_APB2Periph_GPIOA, GPIO_PortSourceGPIOA},
+    {GPIOB, "GPIOB", RCC_APB2Periph_GPIOB, GPIO_PortSourceGPIOB},
+    {GPIOC, "GPIOC", RCC_APB2Periph_GPIOC, GPIO_PortSourceGPIOC},
+    {GPIOD, "GPIOD", RCC_APB2Periph_GPIOD, GPIO_PortSourceGPIOD},
+    {GPIOE, "GPIOE", RCC_APB2Periph_GPIOE, GPIO_PortSourceGPIOE},
+    {GPIOF, "GPIOF", RCC_APB2Periph_GPIOF, GPIO_PortSourceGPIOF},
+    {GPIOG, "GPIOG", RCC_APB2Periph_GPIOG, GPIO_PortSourceGPIOG},
+};
+
+static const struct gpio_info *gpio_info_find(const GPIO_TypeDef *gpio)
+{
+    unsigned int i;
+    for (i = 0; i < ARRAY_SIZE(gpio_info_list); ++i)
+    {
+        if (gpio_info_list[i].gpio == gpio)
+            return &gpio_info_list[i];
+    }
+    return NULL;
+}
+
 bool is_abp1_periph_enabled(uint32_t periph)
 {
     return !!(RCC->APB1ENR & periph);
@@ -29,16 +59,25 @@ void abp2_periph_enable(uint32_t periph)
         RCC_APB2PeriphClockCmd(periph, ENABLE);
 }
 
-void gpio_init(GPIO_TypeDef *gpio, uint16_t pins, GPIOMode_TypeDef mode, uint32_t gpio_periph)
+void gpio_init(GPIO_TypeDef *gpio, uint16_t pins, GPIOMode_TypeDef mode)
 {
+    const struct gpio_info *gpio_info = gpio_info_find(gpio);
     GPIO_InitTypeDef gpio_init_def;
 
-    abp2_periph_enable(gpio_periph);
+    if (!gpio_info)
+    {
+        TRACE("Invalid gpio %p.\n", gpio);
+        return;
+    }
+
+    abp2_periph_enable(gpio_info->periph);
 
     gpio_init_def.GPIO_Mode = mode;
     gpio_init_def.GPIO_Pin = pins;
     gpio_init_def.GPIO_Speed = GPIO_Speed_50MHz;
     GPIO_Init(gpio, &gpio_init_def);
+
+    TRACE("%s initialized.\n", gpio_info->name);
 }
 
 void exti_init(uint8_t port_source, uint32_t exti_line, uint8_t pin_source, uint8_t pin_exti_irqn,

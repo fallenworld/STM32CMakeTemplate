@@ -14,14 +14,6 @@
 #define __PROJECT_NAME__ "STM32"
 #endif
 
-#define GPIOA_PERIPH RCC_APB2Periph_GPIOA
-#define GPIOB_PERIPH RCC_APB2Periph_GPIOB
-#define GPIOC_PERIPH RCC_APB2Periph_GPIOC
-#define GPIOD_PERIPH RCC_APB2Periph_GPIOD
-#define GPIOE_PERIPH RCC_APB2Periph_GPIOE
-#define GPIOF_PERIPH RCC_APB2Periph_GPIOF
-#define GPIOG_PERIPH RCC_APB2Periph_GPIOG
-
 #define GPIOA_PORT_SOURCE GPIO_PortSourceGPIOA
 #define GPIOB_PORT_SOURCE GPIO_PortSourceGPIOB
 #define GPIOC_PORT_SOURCE GPIO_PortSourceGPIOC
@@ -96,14 +88,7 @@
 #define ARRAY_SIZE(array) (sizeof(array) / sizeof(array[0]))
 
 /* GPIO. */
-void gpio_init(GPIO_TypeDef *gpio, uint16_t pins, GPIOMode_TypeDef mode, uint32_t gpio_periph);
-
-#define GPIO_INIT(gpio, pins, mode) do                                                \
-{                                                                                     \
-    DEBUG_TRACE(__FILE_NAME__, __LINE__, "GPIO_INIT", "gpio %s, pins %s, mode %s.\n", \
-            #gpio, #pins, #mode);                                                     \
-    gpio_init(gpio, pins, mode, gpio##_PERIPH);                                       \
-} while (0)
+void gpio_init(GPIO_TypeDef *gpio, uint16_t pins, GPIOMode_TypeDef mode);
 
 /* EXTI. */
 void exti_init(uint8_t port_source, uint32_t exti_line, uint8_t pin_source, uint8_t pin_exti_irqn,
@@ -114,7 +99,7 @@ void exti_init(uint8_t port_source, uint32_t exti_line, uint8_t pin_source, uint
     DEBUG_TRACE(__FILE_NAME__, __LINE__, "EXTI_INIT",                             \
             "gpio %s, pins %s, trigger %s, preemption_pri %u, sub_pri %u.\n",     \
             #gpio, #pin, #trigger, preemption_pri, sub_pri);                      \
-    gpio_init(gpio, pin, GPIO_Mode_IPU, gpio##_PERIPH);                           \
+    gpio_init(gpio, pin, GPIO_Mode_IPU);                                          \
     exti_init(gpio##_PORT_SOURCE, pin##_EXTI_LINE, pin##_SOURCE, pin##_EXTI_IRQN, \
             trigger, preemption_pri, sub_pri);                                    \
 } while (0)
@@ -129,8 +114,8 @@ uint8_t usart_wait_byte(USART_TypeDef *usart);
 #define USART_INIT(usart) do                                                       \
 {                                                                                  \
     DEBUG_TRACE(__FILE_NAME__, __LINE__, "USART_INIT", "usart %s.\n", #usart);     \
-    gpio_init(usart##_GPIO, usart##_TX_PIN, GPIO_Mode_AF_PP, usart##_GPIO_PERIPH); \
-    gpio_init(usart##_GPIO, usart##_RX_PIN, GPIO_Mode_IPU,   usart##_GPIO_PERIPH); \
+    gpio_init(usart##_GPIO, usart##_TX_PIN, GPIO_Mode_AF_PP);                      \
+    gpio_init(usart##_GPIO, usart##_RX_PIN, GPIO_Mode_IPU);                        \
     usart_init(usart, usart##_PERIPH);                                             \
 } while (0)
 
@@ -150,8 +135,8 @@ void debug_trace(const char *file, int line, const char *func, const char *forma
 #define DEBUG_TRACE debug_trace
 #define DEBUG_INIT(usart) do                                                       \
 {                                                                                  \
-    gpio_init(usart##_GPIO, usart##_TX_PIN, GPIO_Mode_AF_PP, usart##_GPIO_PERIPH); \
-    gpio_init(usart##_GPIO, usart##_RX_PIN, GPIO_Mode_IPU,   usart##_GPIO_PERIPH); \
+    gpio_init(usart##_GPIO, usart##_TX_PIN, GPIO_Mode_AF_PP);                      \
+    gpio_init(usart##_GPIO, usart##_RX_PIN, GPIO_Mode_IPU);                        \
     usart_init(usart, usart##_PERIPH);                                             \
     debug_set_usart(usart);                                                        \
     DEBUG_TRACE(__FILE_NAME__, __LINE__,                                           \
@@ -162,6 +147,6 @@ void debug_trace(const char *file, int line, const char *func, const char *forma
 #define DEBUG_INIT
 #endif /* DEBUG */
 
-#define TRACE(format, ...) DEBUG_TRACE(__FILE_NAME__, ___LINE__, _func__, format, ##__VA_ARGS__);
+#define TRACE(format, ...) DEBUG_TRACE(__FILE_NAME__, __LINE__, __func__, format, ##__VA_ARGS__);
 
 #endif /* __STM32_H__ */
