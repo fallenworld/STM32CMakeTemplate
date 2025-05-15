@@ -79,7 +79,7 @@ int _lseek(int file, int ptr, int dir)
     (void)file;
     (void)ptr;
     (void)dir;
-    return 0;
+    return -1;
 }
 
 int _open(char *path, int flags, ...)

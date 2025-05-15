@@ -10,8 +10,7 @@ cmake_minimum_required(VERSION 3.22)
 set(STD_PERIPH_LIB    $ENV{HOME}/dev/stm32/StandardPeripheralLibrary/STM32F10x_StdPeriph_Lib_V3.6.0)
 set(TOOLCHAIN_PATH    $ENV{HOME}/dev/stm32/arm-gnu-toolchain-13.3.rel1-x86_64-arm-none-eabi)
 set(LINKER_SCRIPT     ${CMAKE_SOURCE_DIR}/STM32F103C8TX_FLASH.ld)
-set(ADAPTER_CFG       /usr/share/openocd/scripts/interface/cmsis-dap.cfg)
-set(BOARD_CFG         /usr/share/openocd/scripts/target/stm32f1x.cfg)
+set(OPENOCD_SCRIPT    ${CMAKE_SOURCE_DIR}/stm32.cfg)
 set(DEVICE_DEFINE     STM32F10X_MD)
 set(STARTUP_CODE      startup_stm32f10x_md.s)
 
@@ -140,19 +139,19 @@ add_custom_command(TARGET ${PROJECT_NAME}.elf POST_BUILD
 # Add a custom target that flash hex file to STM32 using openocd
 add_custom_target(flash-hex
         DEPENDS ${PROJECT_NAME}.elf
-        COMMAND openocd -f ${ADAPTER_CFG} -f ${BOARD_CFG} -c init -c "reset halt" -c "flash write_image erase ${HEX_FILE}" -c reset -c shutdown
+        COMMAND openocd -f ${OPENOCD_SCRIPT} -c init -c "reset halt" -c "flash write_image erase ${HEX_FILE}" -c reset -c shutdown
         #COMMAND openocd -f ${ADAPTER_CFG} -f ${BOARDCFG} -c init -c "reset halt" -c "sleep 100" -c wait_halt 2" -c "flash write_image erase ${HEX_FILE}" -c "reset run" -c shutdown
         COMMENT "Flashing ${HEX_FILE} to STM32")
 
 # Add a custom target that flash bin file to STM32 using openocd
 add_custom_target(flash-bin
         DEPENDS ${PROJECT_NAME}.elf
-        COMMAND openocd -f ${ADAPTER_CFG} -f ${BOARD_CFG} -c init -c "reset halt" -c "flash write_image erase ${BIN_FILE} 0x08000000" -c reset -c shutdown
+        COMMAND openocd -f ${OPENOCD_SCRIPT} -c init -c "reset halt" -c "flash write_image erase ${BIN_FILE} 0x08000000" -c reset -c shutdown
         COMMENT "Flashing ${HEX_FILE} to STM32")
 
 # Add a custom target that erase STM32 using openocd
 add_custom_target(erase
-        COMMAND openocd -f ${ADAPTER_CFG} -f ${BOARD_CFG} -c init -c "reset halt" -c "stm32f1x mass_erase 0" -c halt -c shutdown
+        COMMAND openocd -f ${OPENOCD_SCRIPT} -c init -c "reset halt" -c "stm32f1x mass_erase 0" -c halt -c shutdown
         COMMENT "Erasing STM32")
 
 #set(CMAKE_ASM_FLAGS      "${CMAKE_C_FLAGS} -x assembler-with-cpp -MMD -MP")

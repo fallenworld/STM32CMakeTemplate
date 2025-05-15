@@ -16,26 +16,6 @@
 #define __PROJECT_NAME__ "STM32"
 #endif
 
-#define GPIOA_PORT_SOURCE GPIO_PortSourceGPIOA
-#define GPIOB_PORT_SOURCE GPIO_PortSourceGPIOB
-#define GPIOC_PORT_SOURCE GPIO_PortSourceGPIOC
-#define GPIOD_PORT_SOURCE GPIO_PortSourceGPIOD
-#define GPIOE_PORT_SOURCE GPIO_PortSourceGPIOE
-#define GPIOF_PORT_SOURCE GPIO_PortSourceGPIOF
-#define GPIOG_PORT_SOURCE GPIO_PortSourceGPIOG
-
-#define USART1_GPIO        GPIOA
-#define USART1_GPIO_PERIPH GPIOA_PERIPH
-#define USART1_PERIPH      RCC_APB2Periph_USART1
-#define USART1_TX_PIN      GPIO_Pin_9
-#define USART1_RX_PIN      GPIO_Pin_10
-
-#define USART2_GPIO        GPIOA
-#define USART2_GPIO_PERIPH GPIOA_PERIPH
-#define USART2_PERIPH      RCC_APB1Periph_USART2
-#define USART2_TX_PIN      GPIO_Pin_2
-#define USART2_RX_PIN      GPIO_Pin_3
-
 #define GPIO_Pin_0_SOURCE  GPIO_PinSource0
 #define GPIO_Pin_1_SOURCE  GPIO_PinSource1
 #define GPIO_Pin_2_SOURCE  GPIO_PinSource2
@@ -90,7 +70,7 @@
 #define ARRAY_SIZE(array) (sizeof(array) / sizeof(array[0]))
 
 /* GPIO. */
-void gpio_init(GPIO_TypeDef *gpio, uint16_t pins, GPIOMode_TypeDef mode);
+bool gpio_init(GPIO_TypeDef *gpio, uint16_t pins, GPIOMode_TypeDef mode);
 
 /* EXTI. */
 void exti_init(uint8_t port_source, uint32_t exti_line, uint8_t pin_source, uint8_t pin_exti_irqn,
@@ -107,19 +87,11 @@ void exti_init(uint8_t port_source, uint32_t exti_line, uint8_t pin_source, uint
 } while (0)
 
 /* USART. */
-void usart_init(USART_TypeDef *usart, uint32_t usart_periph);
+bool usart_init(USART_TypeDef *usart);
 void usart_send_byte(USART_TypeDef *usart, uint8_t byte);
 void usart_send_str(USART_TypeDef *usart, const char *str);
 bool usart_has_data(USART_TypeDef *usart);
 uint8_t usart_wait_byte(USART_TypeDef *usart);
-
-#define USART_INIT(usart) do                                                       \
-{                                                                                  \
-    DEBUG_TRACE(__FILE_NAME__, __LINE__, "USART_INIT", "usart %s.\n", #usart);     \
-    gpio_init(usart##_GPIO, usart##_TX_PIN, GPIO_Mode_AF_PP);                      \
-    gpio_init(usart##_GPIO, usart##_RX_PIN, GPIO_Mode_IPU);                        \
-    usart_init(usart, usart##_PERIPH);                                             \
-} while (0)
 
 /* Timer. */
 void timer_update_init(TIM_TypeDef *timer, bool internal_clock, uint16_t prescaler, uint16_t period);
@@ -133,29 +105,15 @@ void delay_us(uint32_t us);
 void delay_ms(uint32_t ms);
 
 /* Debug. */
-void debug_set_usart(USART_TypeDef *usart);
-void vprint(const char *format, va_list args);
-void print(const char *format, ...);
+bool debug_init(USART_TypeDef *usart, GPIO_TypeDef *debug_led_gpio, uint16_t debug_led_pin);
 void debug_trace(const char *file, int line, const char *func, const char *format, ...);
 void __assert_func(const char *file, int line, const char *func, const char *expr);
 void assert_failed(uint8_t *file, uint32_t line);
 
 #ifdef DEBUG
-#define DEBUG_TRACE debug_trace
-#define DEBUG_INIT(usart) do                                                       \
-{                                                                                  \
-    gpio_init(usart##_GPIO, usart##_TX_PIN, GPIO_Mode_AF_PP);                      \
-    gpio_init(usart##_GPIO, usart##_RX_PIN, GPIO_Mode_IPU);                        \
-    usart_init(usart, usart##_PERIPH);                                             \
-    debug_set_usart(usart);                                                        \
-    DEBUG_TRACE(__FILE_NAME__, __LINE__,                                           \
-            "DEBUG_INIT", "Debug output channel initialized at %s.\n", #usart);    \
-} while (0)
+#define TRACE(format, ...) debug_trace(__FILE_NAME__, __LINE__, __func__, format, ##__VA_ARGS__);
 #else
-#define DEBUG_TRACE
-#define DEBUG_INIT
+#define TRACE
 #endif /* DEBUG */
-
-#define TRACE(format, ...) DEBUG_TRACE(__FILE_NAME__, __LINE__, __func__, format, ##__VA_ARGS__);
 
 #endif /* __STM32_H__ */

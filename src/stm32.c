@@ -9,7 +9,8 @@
 #define SERVO_PERIOD_COUNT (2000)
 
 static USART_TypeDef *debug_usart = NULL;
-static char print_buffer[128];
+static GPIO_TypeDef *debug_led_gpio = NULL;
+static uint16_t debug_led_pin = 0;
 
 struct gpio_info
 {
@@ -17,6 +18,17 @@ struct gpio_info
     const char *name;
     uint32_t periph;
     uint8_t port_source;
+};
+
+struct usart_info
+{
+    USART_TypeDef *usart;
+    const char *name;
+    uint32_t periph;
+    GPIO_TypeDef *tx_gpio;
+    uint16_t tx_pin;
+    GPIO_TypeDef *rx_gpio;
+    uint16_t rx_pin;
 };
 
 struct timer_info
@@ -45,6 +57,12 @@ static const struct gpio_info gpio_info_list[] =
     {GPIOE, "GPIOE", RCC_APB2Periph_GPIOE, GPIO_PortSourceGPIOE},
     {GPIOF, "GPIOF", RCC_APB2Periph_GPIOF, GPIO_PortSourceGPIOF},
     {GPIOG, "GPIOG", RCC_APB2Periph_GPIOG, GPIO_PortSourceGPIOG},
+};
+
+static const struct usart_info usart_info_list[] =
+{
+    {USART1, "USART1", RCC_APB2Periph_USART1, GPIOA, GPIO_Pin_9, GPIOA, GPIO_Pin_10},
+    {USART2, "USART2", RCC_APB1Periph_USART2, GPIOA, GPIO_Pin_2, GPIOA, GPIO_Pin_3},
 };
 
 static const struct timer_info timer_info_list[] =
@@ -94,6 +112,17 @@ static const struct timer_info *timer_info_find(const TIM_TypeDef *timer)
     return NULL;
 }
 
+static const struct usart_info *usart_info_find(const USART_TypeDef *usart)
+{
+    unsigned int i;
+    for (i = 0; i < ARRAY_SIZE(usart_info_list); ++i)
+    {
+        if (usart_info_list[i].usart == usart)
+            return &usart_info_list[i];
+    }
+    return NULL;
+}
+
 bool is_abp1_periph_enabled(uint32_t periph)
 {
     return !!(RCC->APB1ENR & periph);
@@ -116,7 +145,7 @@ void abp2_periph_enable(uint32_t periph)
         RCC_APB2PeriphClockCmd(periph, ENABLE);
 }
 
-void gpio_init(GPIO_TypeDef *gpio, uint16_t pins, GPIOMode_TypeDef mode)
+bool gpio_init(GPIO_TypeDef *gpio, uint16_t pins, GPIOMode_TypeDef mode)
 {
     const struct gpio_info *gpio_info = gpio_info_find(gpio);
     GPIO_InitTypeDef gpio_init_def;
@@ -124,7 +153,7 @@ void gpio_init(GPIO_TypeDef *gpio, uint16_t pins, GPIOMode_TypeDef mode)
     if (!gpio_info)
     {
         TRACE("Invalid gpio %p.\n", gpio);
-        return;
+        return false;
     }
 
     abp2_periph_enable(gpio_info->periph);
@@ -134,7 +163,9 @@ void gpio_init(GPIO_TypeDef *gpio, uint16_t pins, GPIOMode_TypeDef mode)
     gpio_init_def.GPIO_Speed = GPIO_Speed_50MHz;
     GPIO_Init(gpio, &gpio_init_def);
 
-    TRACE("%s initialized.\n", gpio_info->name);
+    TRACE("Inited %s, pins %#x.\n", gpio_info->name, pins);
+
+    return true;
 }
 
 void exti_init(uint8_t port_source, uint32_t exti_line, uint8_t pin_source, uint8_t pin_exti_irqn,
@@ -162,18 +193,44 @@ void exti_init(uint8_t port_source, uint32_t exti_line, uint8_t pin_source, uint
     NVIC_Init(&nvic_init_def);
 }
 
-void usart_init(USART_TypeDef *usart, uint32_t usart_periph)
+const char *usart_name(const USART_TypeDef *usart)
 {
+    const struct usart_info *usart_info = usart_info_find(usart);
+    if (!usart_info)
+        return "(Invalid USART)";
+    return usart_info->name;
+}
+
+bool usart_init(USART_TypeDef *usart)
+{
+    const struct usart_info *usart_info = usart_info_find(usart);
     USART_InitTypeDef usart_init_def;
 
+    if (!usart_info)
+    {
+        TRACE("Invalid usart %p.\n", usart);
+        return false;
+    }
+
+    if (!gpio_init(usart_info->tx_gpio, usart_info->tx_pin, GPIO_Mode_AF_PP)
+            || !gpio_init(usart_info->rx_gpio, usart_info->rx_pin, GPIO_Mode_IPU))
+    {
+        TRACE("Failed to init GPIO.\n");
+        return false;
+    }
+
     if (usart == USART1)
-        abp2_periph_enable(usart_periph);
+        abp2_periph_enable(usart_info->periph);
     else
-        abp1_periph_enable(usart_periph);
+        abp1_periph_enable(usart_info->periph);
 
     USART_StructInit(&usart_init_def);
     USART_Init(usart, &usart_init_def);
     USART_Cmd(usart, ENABLE);
+
+    TRACE("Inited %s.\n", usart_info->name);
+
+    return true;
 }
 
 void usart_send_byte(USART_TypeDef *usart, uint8_t byte)
@@ -360,51 +417,60 @@ void delay_ms(uint32_t ms)
         delay_us(1000);
 }
 
-void debug_set_usart(USART_TypeDef *usart)
+bool debug_init(USART_TypeDef *usart, GPIO_TypeDef *debug_led_gpio, uint16_t debug_led_pin)
 {
+    /* We need to disable IO buffering before any printf call.
+     * _sbrk returns NULL, making IO buffer for printf fail to allocate.
+     * if we don't disable buffering, printf will get stuck. */
+    setvbuf(stdout, NULL, _IONBF, 0);
+    setvbuf(stderr, NULL, _IONBF, 0);
+
+    if (!usart_init(usart))
+        return false;
+
+    if (debug_led_gpio && debug_led_pin)
+    {
+        if (!gpio_init(debug_led_gpio, debug_led_pin, GPIO_Mode_Out_PP))
+            return false;
+    }
+
     debug_usart = usart;
-}
+    printf("\n\n\n=========================== %s started ===========================\n\n", __PROJECT_NAME__);
+    TRACE("Debug channel inited on %s.\n", usart_name(usart));
 
-void vprint(const char *format, va_list args)
-{
-    if (!debug_usart)
-        return;
-    vsnprintf(print_buffer, sizeof(print_buffer), format, args);
-    usart_send_str(debug_usart, print_buffer);
-}
-
-void print(const char *format, ...)
-{
-    va_list args;
-    va_start(args, format);
-    vprint(format, args);
-    va_end(args);
+    return true;
 }
 
 void debug_trace(const char *file, int line, const char *func, const char *format, ...)
 {
     va_list args;
-    print("%s: %s(%d): %s: ", __PROJECT_NAME__, file, line, func);
+    printf("%s: %s(%d): %s: ", __PROJECT_NAME__, file, line, func);
     va_start(args, format);
-    vprint(format, args);
+    vprintf(format, args);
     va_end(args);
+}
+
+int __io_putchar(int ch)
+{
+    if (!debug_usart)
+        return 0;
+    usart_send_byte(debug_usart, ch);
+    return ch;
 }
 
 void __assert_func(const char *file, int line, const char *func, const char *expr)
 {
-    GPIO_TypeDef *debug_led_gpio = GPIOC;
-    uint16_t debug_led_pin = GPIO_Pin_13;
+    debug_trace(strrchr(file, '/') + 1, line, func, "ASSERT FAILED: (%s).\n", expr);
 
-    print("%s: !!ASSERT FAILED!! %s(%u): %s(): (%s).\n",
-            __PROJECT_NAME__, strrchr(file, '/') + 1, line, func, expr);
-
-    gpio_init(debug_led_gpio, debug_led_pin, GPIO_Mode_Out_PP);
     while (1)
     {
-        GPIO_WriteBit(debug_led_gpio, debug_led_pin, Bit_SET);
-        delay_ms(500);
-        GPIO_WriteBit(debug_led_gpio, debug_led_pin, Bit_RESET);
-        delay_ms(500);
+        if (debug_led_gpio && debug_led_pin)
+        {
+            GPIO_WriteBit(debug_led_gpio, debug_led_pin, Bit_SET);
+            delay_ms(500);
+            GPIO_WriteBit(debug_led_gpio, debug_led_pin, Bit_RESET);
+            delay_ms(500);
+        }
     }
 }
 
