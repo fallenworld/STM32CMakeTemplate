@@ -69,6 +69,11 @@
 
 #define ARRAY_SIZE(array) (sizeof(array) / sizeof(array[0]))
 
+bool is_abp1_periph_enabled(uint32_t periph);
+bool is_abp2_periph_enabled(uint32_t periph);
+void abp1_periph_enable(uint32_t periph);
+void abp2_periph_enable(uint32_t periph);
+
 /* GPIO. */
 bool gpio_init(GPIO_TypeDef *gpio, uint16_t pins, GPIOMode_TypeDef mode);
 
@@ -87,6 +92,8 @@ void exti_init(uint8_t port_source, uint32_t exti_line, uint8_t pin_source, uint
 } while (0)
 
 /* USART. */
+const struct usart_info *usart_info_find(const USART_TypeDef *usart);
+const char *usart_name(const USART_TypeDef *usart);
 bool usart_init(USART_TypeDef *usart);
 void usart_send_byte(USART_TypeDef *usart, uint8_t byte);
 void usart_send_str(USART_TypeDef *usart, const char *str);
