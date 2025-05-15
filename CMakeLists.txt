@@ -46,7 +46,7 @@ elseif ("${CMAKE_BUILD_TYPE}" STREQUAL "MinSizeRel")
 else ()
     message(STATUS "Minimal optimization, debug info included")
     add_compile_options(-Og -g)
-    add_definitions(-DDEBUG)
+    add_definitions(-DDEBUG -DUSE_FULL_ASSERT)
 endif ()
 
 # Sources and includes.
@@ -98,7 +98,7 @@ add_definitions(-DUSE_STDPERIPH_DRIVER
 # Compile options.
 add_compile_options(-mcpu=cortex-m3 -mthumb -mthumb-interwork)
 add_compile_options(-ffunction-sections -fdata-sections -fno-common -fmessage-length=0)
-add_compile_options(-Wall -Wextra -Wpedantic)
+add_compile_options(-Wall -Wextra -Werror -Wpedantic)
 
 # Enable assembler files preprocessing.
 add_compile_options($<$<COMPILE_LANGUAGE:ASM>:-x$<SEMICOLON>assembler-with-cpp>)

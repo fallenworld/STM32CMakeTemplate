@@ -5,9 +5,11 @@
 #ifndef __STM32_H__
 #define __STM32_H__
 
+#include <assert.h>
 #include <stdarg.h>
 #include <stdbool.h>
 #include <stdio.h>
+#include <string.h>
 #include "stm32f10x.h"
 
 #ifndef __PROJECT_NAME__
@@ -119,7 +121,12 @@ uint8_t usart_wait_byte(USART_TypeDef *usart);
     usart_init(usart, usart##_PERIPH);                                             \
 } while (0)
 
-void timer_init();
+/* Timer. */
+void timer_update_init(TIM_TypeDef *timer, bool internal_clock, uint16_t prescaler, uint16_t period);
+void pwm_init(TIM_TypeDef *timer, int channel, uint32_t frequency, uint16_t period);
+void pwm_set_pulse(TIM_TypeDef *timer, int channel, uint16_t pulse);
+void servo_init(TIM_TypeDef *timer, int channel);
+void servo_set_angle(TIM_TypeDef *timer, int channel, uint32_t angle);
 
 /* Delay. */
 void delay_us(uint32_t us);
@@ -130,6 +137,8 @@ void debug_set_usart(USART_TypeDef *usart);
 void vprint(const char *format, va_list args);
 void print(const char *format, ...);
 void debug_trace(const char *file, int line, const char *func, const char *format, ...);
+void __assert_func(const char *file, int line, const char *func, const char *expr);
+void assert_failed(uint8_t *file, uint32_t line);
 
 #ifdef DEBUG
 #define DEBUG_TRACE debug_trace
