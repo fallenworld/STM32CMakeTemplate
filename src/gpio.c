@@ -1,9 +1,8 @@
 /*
- * STM32 helper functions.
+ * STM32 GPIO helper functions.
  */
 
 #include "stm32.h"
-
 
 struct gpio_info
 {
@@ -15,13 +14,13 @@ struct gpio_info
 
 static const struct gpio_info gpio_info_list[] =
 {
-    {GPIOA, "GPIOA", RCC_APB2Periph_GPIOA, GPIO_PortSourceGPIOA},
-    {GPIOB, "GPIOB", RCC_APB2Periph_GPIOB, GPIO_PortSourceGPIOB},
-    {GPIOC, "GPIOC", RCC_APB2Periph_GPIOC, GPIO_PortSourceGPIOC},
-    {GPIOD, "GPIOD", RCC_APB2Periph_GPIOD, GPIO_PortSourceGPIOD},
-    {GPIOE, "GPIOE", RCC_APB2Periph_GPIOE, GPIO_PortSourceGPIOE},
-    {GPIOF, "GPIOF", RCC_APB2Periph_GPIOF, GPIO_PortSourceGPIOF},
-    {GPIOG, "GPIOG", RCC_APB2Periph_GPIOG, GPIO_PortSourceGPIOG},
+    {GPIOA, "PA", RCC_APB2Periph_GPIOA, GPIO_PortSourceGPIOA},
+    {GPIOB, "PB", RCC_APB2Periph_GPIOB, GPIO_PortSourceGPIOB},
+    {GPIOC, "PC", RCC_APB2Periph_GPIOC, GPIO_PortSourceGPIOC},
+    {GPIOD, "PD", RCC_APB2Periph_GPIOD, GPIO_PortSourceGPIOD},
+    {GPIOE, "PE", RCC_APB2Periph_GPIOE, GPIO_PortSourceGPIOE},
+    {GPIOF, "PF", RCC_APB2Periph_GPIOF, GPIO_PortSourceGPIOF},
+    {GPIOG, "PG", RCC_APB2Periph_GPIOG, GPIO_PortSourceGPIOG},
 };
 
 static const struct gpio_info *gpio_info_find(const GPIO_TypeDef *gpio)
@@ -33,28 +32,6 @@ static const struct gpio_info *gpio_info_find(const GPIO_TypeDef *gpio)
             return &gpio_info_list[i];
     }
     return NULL;
-}
-
-bool is_abp1_periph_enabled(uint32_t periph)
-{
-    return !!(RCC->APB1ENR & periph);
-}
-
-bool is_abp2_periph_enabled(uint32_t periph)
-{
-    return !!(RCC->APB2ENR & periph);
-}
-
-void abp1_periph_enable(uint32_t periph)
-{
-    if (!is_abp1_periph_enabled(periph))
-        RCC_APB1PeriphClockCmd(periph, ENABLE);
-}
-
-void abp2_periph_enable(uint32_t periph)
-{
-    if (!is_abp2_periph_enabled(periph))
-        RCC_APB2PeriphClockCmd(periph, ENABLE);
 }
 
 bool gpio_init(GPIO_TypeDef *gpio, uint16_t pins, GPIOMode_TypeDef mode)
@@ -104,4 +81,3 @@ void exti_init(uint8_t port_source, uint32_t exti_line, uint8_t pin_source, uint
     nvic_init_def.NVIC_IRQChannelCmd = ENABLE;
     NVIC_Init(&nvic_init_def);
 }
-

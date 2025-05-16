@@ -69,11 +69,6 @@
 
 #define ARRAY_SIZE(array) (sizeof(array) / sizeof(array[0]))
 
-bool is_abp1_periph_enabled(uint32_t periph);
-bool is_abp2_periph_enabled(uint32_t periph);
-void abp1_periph_enable(uint32_t periph);
-void abp2_periph_enable(uint32_t periph);
-
 /* GPIO. */
 bool gpio_init(GPIO_TypeDef *gpio, uint16_t pins, GPIOMode_TypeDef mode);
 
@@ -122,5 +117,27 @@ void assert_failed(uint8_t *file, uint32_t line);
 #else
 #define TRACE
 #endif /* DEBUG */
+
+static inline bool is_abp1_periph_enabled(uint32_t periph)
+{
+    return !!(RCC->APB1ENR & periph);
+}
+
+static inline bool is_abp2_periph_enabled(uint32_t periph)
+{
+    return !!(RCC->APB2ENR & periph);
+}
+
+static inline void abp1_periph_enable(uint32_t periph)
+{
+    if (!is_abp1_periph_enabled(periph))
+        RCC_APB1PeriphClockCmd(periph, ENABLE);
+}
+
+static inline void abp2_periph_enable(uint32_t periph)
+{
+    if (!is_abp2_periph_enabled(periph))
+        RCC_APB2PeriphClockCmd(periph, ENABLE);
+}
 
 #endif /* __STM32_H__ */

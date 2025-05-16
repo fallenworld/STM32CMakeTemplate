@@ -87,9 +87,9 @@ set(LIBRARY_SOURCES
 
 set(USER_SOURCES
         src/debug.c
+        src/gpio.c
         src/main.c
         src/timer.c
-        src/stm32.c
         src/syscalls.c
         src/usart.c)
 
