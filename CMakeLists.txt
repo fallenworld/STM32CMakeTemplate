@@ -86,6 +86,7 @@ set(LIBRARY_SOURCES
         ${STD_PERIPH_LIB}/Project/STM32F10x_StdPeriph_Template/stm32f10x_it.c)
 
 set(USER_SOURCES
+        src/debug.c
         src/main.c
         src/stm32.c
         src/syscalls.c
