@@ -102,10 +102,10 @@ uint8_t usart_wait_byte(USART_TypeDef *usart);
 
 /* Timer. */
 void timer_update_init(TIM_TypeDef *timer, bool internal_clock, uint16_t prescaler, uint16_t period);
-void pwm_init(TIM_TypeDef *timer, int channel, uint32_t frequency, uint16_t period);
-void pwm_set_pulse(TIM_TypeDef *timer, int channel, uint16_t pulse);
-void servo_init(TIM_TypeDef *timer, int channel);
-void servo_set_angle(TIM_TypeDef *timer, int channel, uint32_t angle);
+void timer_pwm_init(TIM_TypeDef *timer, int channel, uint32_t frequency, uint16_t period);
+void timer_pwm_set_pulse(TIM_TypeDef *timer, int channel, uint16_t pulse);
+void timer_servo_init(TIM_TypeDef *timer, int channel);
+void timer_servo_set_angle(TIM_TypeDef *timer, int channel, uint32_t angle);
 
 /* Delay. */
 void delay_us(uint32_t us);
