@@ -7,6 +7,8 @@
 static USART_TypeDef *debug_usart = NULL;
 static GPIO_TypeDef *debug_led_gpio = NULL;
 static uint16_t debug_led_pin = 0;
+static char debug_buffer[16];
+size_t debug_buffer_pos = 0;
 
 bool debug_init(USART_TypeDef *usart, GPIO_TypeDef *debug_led_gpio, uint16_t debug_led_pin)
 {
@@ -39,6 +41,40 @@ void debug_trace(const char *file, int line, const char *func, const char *forma
     va_start(args, format);
     vprintf(format, args);
     va_end(args);
+}
+
+/* TODO: Use lock for multithread. */
+const char *debug_buffer_vsprintf(const char *format, va_list args)
+{
+    char buffer[sizeof(debug_buffer) / 4];
+    const char *ret;
+    size_t size;
+
+    size = vsnprintf(buffer, sizeof(buffer), format, args) + 1;
+    if (size > sizeof(buffer))
+    {
+        strcpy(buffer + sizeof(buffer) - 4, "...");
+        size = sizeof(buffer);
+    }
+
+    if (debug_buffer_pos + size > sizeof(debug_buffer))
+        debug_buffer_pos = 0;
+    size = sprintf(debug_buffer + debug_buffer_pos, "%s", buffer) + 1;
+
+    ret = debug_buffer + debug_buffer_pos;
+    debug_buffer_pos += size;
+
+    return ret;
+}
+
+const char *debug_buffer_sprintf(const char *format, ...)
+{
+    const char *ret;
+    va_list args;
+    va_start(args, format);
+    ret = debug_buffer_vsprintf(format, args);
+    va_end( args );
+    return ret;
 }
 
 int __io_putchar(int ch)

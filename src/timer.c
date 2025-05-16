@@ -184,9 +184,9 @@ void timer_pwm_set_pulse(TIM_TypeDef *timer, int channel, uint16_t pulse)
 {
     TRACE("timer %p, channel %d, pulse %u.\n", timer, channel, pulse);
 
-    if (!timer || channel < 1 || channel >= 5)
+    if (!timer || channel < 1 || channel > 4)
     {
-        TRACE("Invalid argument.\n", timer);
+        TRACE("Invalid argument: timer %p, channel %u, pulse %u.\n", timer, channel, pulse);
         return;
     }
 

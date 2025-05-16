@@ -4,70 +4,132 @@
 
 #include "stm32.h"
 
-struct gpio_info
+static const GPIO_TypeDef *gpio_list[] = {GPIOA, GPIOB, GPIOC, GPIOD, GPIOE, GPIOF, GPIOG};
+
+static const enum IRQn pin_irq_channels[] =
 {
-    GPIO_TypeDef *gpio;
-    const char *name;
-    uint32_t periph;
-    uint8_t port_source;
+    EXTI0_IRQn,     EXTI1_IRQn,     EXTI2_IRQn,     EXTI3_IRQn,     EXTI4_IRQn,
+    EXTI9_5_IRQn,   EXTI9_5_IRQn,   EXTI9_5_IRQn,   EXTI9_5_IRQn,   EXTI9_5_IRQn,
+    EXTI15_10_IRQn, EXTI15_10_IRQn, EXTI15_10_IRQn, EXTI15_10_IRQn, EXTI15_10_IRQn, EXTI15_10_IRQn,
 };
 
-static const struct gpio_info gpio_info_list[] =
+static uint8_t gpio_get_index(GPIO_TypeDef *gpio)
 {
-    {GPIOA, "PA", RCC_APB2Periph_GPIOA, GPIO_PortSourceGPIOA},
-    {GPIOB, "PB", RCC_APB2Periph_GPIOB, GPIO_PortSourceGPIOB},
-    {GPIOC, "PC", RCC_APB2Periph_GPIOC, GPIO_PortSourceGPIOC},
-    {GPIOD, "PD", RCC_APB2Periph_GPIOD, GPIO_PortSourceGPIOD},
-    {GPIOE, "PE", RCC_APB2Periph_GPIOE, GPIO_PortSourceGPIOE},
-    {GPIOF, "PF", RCC_APB2Periph_GPIOF, GPIO_PortSourceGPIOF},
-    {GPIOG, "PG", RCC_APB2Periph_GPIOG, GPIO_PortSourceGPIOG},
-};
-
-static const struct gpio_info *gpio_info_find(const GPIO_TypeDef *gpio)
-{
-    unsigned int i;
-    for (i = 0; i < ARRAY_SIZE(gpio_info_list); ++i)
+    uint8_t index;
+    for (index = 0; index < ARRAY_SIZE(gpio_list); ++index)
     {
-        if (gpio_info_list[i].gpio == gpio)
-            return &gpio_info_list[i];
+        if (gpio_list[index] == gpio)
+            return index;
     }
-    return NULL;
+    return (uint8_t)-1;
+}
+
+static const char *gpio_name(GPIO_TypeDef *gpio)
+{
+    return debug_buffer_sprintf("P%c", 'A' + gpio_get_index(gpio));
+}
+
+static uint32_t gpio_port_source(GPIO_TypeDef *gpio)
+{
+    return gpio_get_index(gpio) - GPIO_PortSourceGPIOA;
+}
+
+static uint32_t gpio_periph(GPIO_TypeDef *gpio)
+{
+    return RCC_APB2Periph_GPIOA << gpio_get_index(gpio);
+}
+
+static uint8_t pin_get_index(uint16_t pin)
+{
+    return count_trailing_zeros(pin);
+}
+
+static const char *pins_str(uint16_t pins)
+{
+    char buffer[64], *ptr = buffer;
+
+    if (pins == GPIO_Pin_All)
+    {
+        return "-All";
+    }
+
+    memset(buffer, 0, sizeof(buffer));
+    while (pins)
+    {
+        int index = pin_get_index(pins);
+        if (ptr == buffer)
+            ptr += sprintf(ptr, "%u", index);
+        else
+            ptr += sprintf(ptr, ",%u", index);
+        pins &= ~(1 << index);
+    }
+
+    return debug_buffer_sprintf("%s", buffer);
+}
+
+static uint8_t pin_source(uint16_t pin)
+{
+    return pin_get_index(pin) - GPIO_PinSource0;
+}
+
+static uint32_t pin_exti_line(uint16_t pin)
+{
+    return pin;
 }
 
 bool gpio_init(GPIO_TypeDef *gpio, uint16_t pins, GPIOMode_TypeDef mode)
 {
-    const struct gpio_info *gpio_info = gpio_info_find(gpio);
+    uint8_t gpio_index = gpio_get_index(gpio);
     GPIO_InitTypeDef gpio_init_def;
 
-    if (!gpio_info)
+    if (gpio_index >= ARRAY_SIZE(gpio_list))
     {
         TRACE("Invalid gpio %p.\n", gpio);
         return false;
     }
 
-    abp2_periph_enable(gpio_info->periph);
+    abp2_periph_enable(gpio_periph(gpio));
 
     gpio_init_def.GPIO_Mode = mode;
     gpio_init_def.GPIO_Pin = pins;
     gpio_init_def.GPIO_Speed = GPIO_Speed_50MHz;
     GPIO_Init(gpio, &gpio_init_def);
 
-    TRACE("Inited %s, pins %#x.\n", gpio_info->name, pins);
+    TRACE("Inited %s%s.\n", gpio_name(gpio), pins_str(pins));
 
     return true;
 }
 
-void exti_init(uint8_t port_source, uint32_t exti_line, uint8_t pin_source, uint8_t pin_exti_irqn,
+bool exti_init(GPIO_TypeDef *gpio, uint16_t pin, irq_handler handler,
         EXTITrigger_TypeDef trigger, uint8_t preemption_pri, uint8_t sub_pri)
 {
+    uint8_t gpio_index = gpio_get_index(gpio), pin_index = pin_get_index(pin);
     EXTI_InitTypeDef exti_init_def;
     NVIC_InitTypeDef nvic_init_def;
 
+    if (gpio_index >= ARRAY_SIZE(gpio_list) || pin_index >= 16)
+    {
+        TRACE("Invalid parameter: gpio %p, pin %u.\n", gpio, pin);
+        return false;
+    }
+
+    if (!gpio_init(gpio, pin, GPIO_Mode_IPU))
+    {
+        TRACE("Failed to init %s%u.\n", gpio_name(gpio), pin_index);
+        return false;
+    }
+
+    if (!exti_set_handler(pin_exti_line(pin), handler))
+    {
+        TRACE("Failed to set EXTI handler to %p.\n", handler);
+        return false;
+    }
+
     abp2_periph_enable(RCC_APB2Periph_AFIO);
 
-    GPIO_EXTILineConfig(port_source, pin_source);
+    GPIO_EXTILineConfig(gpio_port_source(gpio), pin_source(pin));
 
-    exti_init_def.EXTI_Line = exti_line;
+    exti_init_def.EXTI_Line = pin_exti_line(pin);
     exti_init_def.EXTI_Trigger = trigger;
     exti_init_def.EXTI_Mode = EXTI_Mode_Interrupt;
     exti_init_def.EXTI_LineCmd = ENABLE;
@@ -75,9 +137,13 @@ void exti_init(uint8_t port_source, uint32_t exti_line, uint8_t pin_source, uint
 
     //NVIC_PriorityGroupConfig(NVIC_PriorityGroup_2);
 
-    nvic_init_def.NVIC_IRQChannel = pin_exti_irqn;
+    nvic_init_def.NVIC_IRQChannel = pin_irq_channels[pin_index];
     nvic_init_def.NVIC_IRQChannelPreemptionPriority = preemption_pri;
     nvic_init_def.NVIC_IRQChannelSubPriority = sub_pri;
     nvic_init_def.NVIC_IRQChannelCmd = ENABLE;
     NVIC_Init(&nvic_init_def);
+
+    TRACE("Inited EXTI on %s%u.\n", gpio_name(gpio), pin_index);
+
+    return true;
 }

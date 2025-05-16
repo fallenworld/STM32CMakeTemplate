@@ -16,75 +16,14 @@
 #define __PROJECT_NAME__ "STM32"
 #endif
 
-#define GPIO_Pin_0_SOURCE  GPIO_PinSource0
-#define GPIO_Pin_1_SOURCE  GPIO_PinSource1
-#define GPIO_Pin_2_SOURCE  GPIO_PinSource2
-#define GPIO_Pin_3_SOURCE  GPIO_PinSource3
-#define GPIO_Pin_4_SOURCE  GPIO_PinSource4
-#define GPIO_Pin_5_SOURCE  GPIO_PinSource5
-#define GPIO_Pin_6_SOURCE  GPIO_PinSource6
-#define GPIO_Pin_7_SOURCE  GPIO_PinSource7
-#define GPIO_Pin_8_SOURCE  GPIO_PinSource8
-#define GPIO_Pin_9_SOURCE  GPIO_PinSource9
-#define GPIO_Pin_10_SOURCE GPIO_PinSource10
-#define GPIO_Pin_11_SOURCE GPIO_PinSource11
-#define GPIO_Pin_12_SOURCE GPIO_PinSource12
-#define GPIO_Pin_13_SOURCE GPIO_PinSource13
-#define GPIO_Pin_14_SOURCE GPIO_PinSource14
-#define GPIO_Pin_15_SOURCE GPIO_PinSource15
-
-#define GPIO_Pin_0_EXTI_LINE  EXTI_Line0
-#define GPIO_Pin_1_EXTI_LINE  EXTI_Line1
-#define GPIO_Pin_2_EXTI_LINE  EXTI_Line2
-#define GPIO_Pin_3_EXTI_LINE  EXTI_Line3
-#define GPIO_Pin_4_EXTI_LINE  EXTI_Line4
-#define GPIO_Pin_5_EXTI_LINE  EXTI_Line5
-#define GPIO_Pin_6_EXTI_LINE  EXTI_Line6
-#define GPIO_Pin_7_EXTI_LINE  EXTI_Line7
-#define GPIO_Pin_8_EXTI_LINE  EXTI_Line8
-#define GPIO_Pin_9_EXTI_LINE  EXTI_Line9
-#define GPIO_Pin_10_EXTI_LINE EXTI_Line10
-#define GPIO_Pin_11_EXTI_LINE EXTI_Line11
-#define GPIO_Pin_12_EXTI_LINE EXTI_Line12
-#define GPIO_Pin_13_EXTI_LINE EXTI_Line13
-#define GPIO_Pin_14_EXTI_LINE EXTI_Line14
-#define GPIO_Pin_15_EXTI_LINE EXTI_Line15
-
-#define GPIO_Pin_0_EXTI_IRQN  EXTI0_IRQn
-#define GPIO_Pin_1_EXTI_IRQN  EXTI1_IRQn
-#define GPIO_Pin_2_EXTI_IRQN  EXTI2_IRQn
-#define GPIO_Pin_3_EXTI_IRQN  EXTI3_IRQn
-#define GPIO_Pin_4_EXTI_IRQN  EXTI4_IRQn
-#define GPIO_Pin_5_EXTI_IRQN  EXTI9_5_IRQn
-#define GPIO_Pin_6_EXTI_IRQN  EXTI9_5_IRQn
-#define GPIO_Pin_7_EXTI_IRQN  EXTI9_5_IRQn
-#define GPIO_Pin_8_EXTI_IRQN  EXTI9_5_IRQn
-#define GPIO_Pin_9_EXTI_IRQN  EXTI9_5_IRQn
-#define GPIO_Pin_10_EXTI_IRQN EXTI15_10_IRQn
-#define GPIO_Pin_11_EXTI_IRQN EXTI15_10_IRQn
-#define GPIO_Pin_12_EXTI_IRQN EXTI15_10_IRQn
-#define GPIO_Pin_13_EXTI_IRQN EXTI15_10_IRQn
-#define GPIO_Pin_14_EXTI_IRQN EXTI15_10_IRQn
-#define GPIO_Pin_15_EXTI_IRQN EXTI15_10_IRQn
-
 #define ARRAY_SIZE(array) (sizeof(array) / sizeof(array[0]))
+
+typedef void (*irq_handler)(void);
 
 /* GPIO. */
 bool gpio_init(GPIO_TypeDef *gpio, uint16_t pins, GPIOMode_TypeDef mode);
-
-/* EXTI. */
-void exti_init(uint8_t port_source, uint32_t exti_line, uint8_t pin_source, uint8_t pin_exti_irqn,
+bool exti_init(GPIO_TypeDef *gpio, uint16_t pin, irq_handler handler,
         EXTITrigger_TypeDef trigger, uint8_t preemption_pri, uint8_t sub_pri);
-
-#define EXTI_INIT(gpio, pin, trigger, preemption_pri, sub_pri) do                 \
-{                                                                                 \
-    DEBUG_TRACE(__FILE_NAME__, __LINE__, "EXTI_INIT",                             \
-            "gpio %s, pins %s, trigger %s, preemption_pri %u, sub_pri %u.\n",     \
-            #gpio, #pin, #trigger, preemption_pri, sub_pri);                      \
-    gpio_init(gpio, pin, GPIO_Mode_IPU);                                          \
-    exti_init(gpio##_PORT_SOURCE, pin##_EXTI_LINE, pin##_SOURCE, pin##_EXTI_IRQN, \
-            trigger, preemption_pri, sub_pri);                                    \
-} while (0)
 
 /* USART. */
 const struct usart_info *usart_info_find(const USART_TypeDef *usart);
@@ -101,14 +40,17 @@ void timer_pwm_init(TIM_TypeDef *timer, int channel, uint32_t frequency, uint16_
 void timer_pwm_set_pulse(TIM_TypeDef *timer, int channel, uint16_t pulse);
 void timer_servo_init(TIM_TypeDef *timer, int channel);
 void timer_servo_set_angle(TIM_TypeDef *timer, int channel, uint32_t angle);
-
-/* Delay. */
 void delay_us(uint32_t us);
 void delay_ms(uint32_t ms);
+
+/* Interrupt handlers. */
+bool exti_set_handler(uint32_t exti_line, irq_handler handler);
 
 /* Debug. */
 bool debug_init(USART_TypeDef *usart, GPIO_TypeDef *debug_led_gpio, uint16_t debug_led_pin);
 void debug_trace(const char *file, int line, const char *func, const char *format, ...);
+const char *debug_buffer_vsprintf(const char *format, va_list args);
+const char *debug_buffer_sprintf(const char *format, ...);
 void __assert_func(const char *file, int line, const char *func, const char *expr);
 void assert_failed(uint8_t *file, uint32_t line);
 
@@ -117,6 +59,23 @@ void assert_failed(uint8_t *file, uint32_t line);
 #else
 #define TRACE
 #endif /* DEBUG */
+
+#if defined(__GNUC__) || defined(__clang__)
+#define count_trailing_zeros(x) __builtin_ctz(x)
+#else
+static inline uint32_t count_trailing_zeros(uint32_t x)
+{
+    uint32_t n = 0;
+    if (x == 0)
+        return 32;
+    if ((x & 0x0000FFFF) == 0) { n += 16; x >>= 16; }
+    if ((x & 0x000000FF) == 0) { n += 8;  x >>= 8;  }
+    if ((x & 0x0000000F) == 0) { n += 4;  x >>= 4;  }
+    if ((x & 0x00000003) == 0) { n += 2;  x >>= 2;  }
+    if ((x & 0x00000001) == 0) { n += 1;            }
+    return n;
+}
+#endif
 
 static inline bool is_abp1_periph_enabled(uint32_t periph)
 {
