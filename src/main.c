@@ -9,15 +9,18 @@
 
 void func(void)
 {
-    if (GPIO_ReadInputDataBit(GPIOA, GPIO_Pin_1) == 0)
-        TRACE("Trigger falling edge.\n");
+    if (GPIO_ReadInputDataBit(GPIOB, GPIO_Pin_9) == 0)
+        TRACE("Trigger falling edge on PB9.\n");
 }
 
 int main(void)
 {
     NVIC_PriorityGroupConfig(NVIC_PriorityGroup_2);
     debug_init(USART1, DEBUG_LED_GPIO, DEBUG_LED_PIN);
-    exti_init(GPIOA, GPIO_Pin_1, func, EXTI_Trigger_Falling, 1, 1);
+    exti_init(GPIOB, GPIO_Pin_9, func, EXTI_Trigger_Falling, 1, 1);
+
+    servo_init(TIM2, 1);
+    servo_set_angle(TIM2, 1, 180);
 
     while (1)
     {

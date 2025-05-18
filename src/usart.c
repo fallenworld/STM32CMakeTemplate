@@ -9,16 +9,13 @@ struct usart_info
     USART_TypeDef *usart;
     const char *name;
     uint32_t periph;
-    GPIO_TypeDef *tx_gpio;
-    uint16_t tx_pin;
-    GPIO_TypeDef *rx_gpio;
-    uint16_t rx_pin;
+    struct gpio_pin tx_pin, rx_pin;
 };
 
 static const struct usart_info usart_info_list[] =
 {
-    {USART1, "USART1", RCC_APB2Periph_USART1, GPIOA, GPIO_Pin_9, GPIOA, GPIO_Pin_10},
-    {USART2, "USART2", RCC_APB1Periph_USART2, GPIOA, GPIO_Pin_2, GPIOA, GPIO_Pin_3},
+    {USART1, "USART1", RCC_APB2Periph_USART1, {GPIOA, GPIO_Pin_9}, {GPIOA, GPIO_Pin_10}},
+    {USART2, "USART2", RCC_APB1Periph_USART2, {GPIOA, GPIO_Pin_2}, {GPIOA, GPIO_Pin_3}},
 };
 
 const struct usart_info *usart_info_find(const USART_TypeDef *usart)
@@ -51,10 +48,10 @@ bool usart_init(USART_TypeDef *usart)
         return false;
     }
 
-    if (!gpio_init(usart_info->tx_gpio, usart_info->tx_pin, GPIO_Mode_AF_PP)
-            || !gpio_init(usart_info->rx_gpio, usart_info->rx_pin, GPIO_Mode_IPU))
+    if (!gpio_pin_init(&usart_info->tx_pin, GPIO_Mode_AF_PP)
+            || !gpio_pin_init(&usart_info->rx_pin,  GPIO_Mode_IPU))
     {
-        TRACE("Failed to init GPIO.\n");
+        TRACE("Failed to init TX/RX pins.\n");
         return false;
     }
 

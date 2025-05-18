@@ -7,7 +7,7 @@
 static USART_TypeDef *debug_usart = NULL;
 static GPIO_TypeDef *debug_led_gpio = NULL;
 static uint16_t debug_led_pin = 0;
-static char debug_buffer[16];
+static char debug_buffer[256];
 size_t debug_buffer_pos = 0;
 
 bool debug_init(USART_TypeDef *usart, GPIO_TypeDef *debug_led_gpio, uint16_t debug_led_pin)

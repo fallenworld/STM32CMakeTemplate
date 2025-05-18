@@ -14,39 +14,37 @@ struct timer_info
     const char *name;
     uint32_t periph;
     enum IRQn irqn;
-
-    GPIO_TypeDef *channel1_gpio;
-    uint32_t channel1_pin;
-    GPIO_TypeDef *channel2_gpio;
-    uint32_t channel2_pin;
-    GPIO_TypeDef *channel3_gpio;
-    uint32_t channel3_pin;
-    GPIO_TypeDef *channel4_gpio;
-    uint32_t channel4_pin;
+    struct gpio_pin channel_pins[4];
 };
 
 static const struct timer_info timer_info_list[] =
 {
     {
         TIM2, "TIM2", RCC_APB1Periph_TIM2, TIM2_IRQn,
-        GPIOA, GPIO_Pin_0,
-        GPIOA, GPIO_Pin_1,
-        GPIOA, GPIO_Pin_2,
-        GPIOA, GPIO_Pin_3
+        {
+            {GPIOA, GPIO_Pin_0},
+            {GPIOA, GPIO_Pin_1},
+            {GPIOA, GPIO_Pin_2},
+            {GPIOA, GPIO_Pin_3},
+        }
     },
     {
         TIM3, "TIM3", RCC_APB1Periph_TIM3, TIM3_IRQn,
-        GPIOA, GPIO_Pin_6,
-        GPIOA, GPIO_Pin_7,
-        GPIOB, GPIO_Pin_0,
-        GPIOB, GPIO_Pin_1
+        {
+            {GPIOA, GPIO_Pin_6},
+            {GPIOA, GPIO_Pin_7},
+            {GPIOB, GPIO_Pin_0},
+            {GPIOB, GPIO_Pin_1},
+        }
     },
     {
         TIM4, "TIM4", RCC_APB1Periph_TIM4, TIM4_IRQn,
-        GPIOB, GPIO_Pin_6,
-        GPIOB, GPIO_Pin_7,
-        GPIOB, GPIO_Pin_8,
-        GPIOB, GPIO_Pin_9
+        {
+            {GPIOB, GPIO_Pin_6},
+            {GPIOB, GPIO_Pin_7},
+            {GPIOB, GPIO_Pin_8},
+            {GPIOB, GPIO_Pin_9},
+        }
     },
 };
 
@@ -55,7 +53,7 @@ static void timer_time_base_init(const struct timer_info *timer_info,
 {
     TIM_TimeBaseInitTypeDef timer_init_def;
 
-    TRACE("timer %s, internal_clock %s, precaler %u, period %u.\n",
+    TRACE("timer %s, internal_clock %s, prescaler %u, period %u.\n",
             timer_info->name, internal_clock ? "true" : "false", prescaler, period);
 
     abp1_periph_enable(timer_info->periph);
@@ -82,7 +80,7 @@ static const struct timer_info *timer_info_find(const TIM_TypeDef *timer)
     return NULL;
 }
 
-void timer_update_init(TIM_TypeDef *timer, bool internal_clock, uint16_t prescaler, uint16_t period)
+bool timer_update_init(TIM_TypeDef *timer, bool internal_clock, uint16_t prescaler, uint16_t period)
 {
     const struct timer_info *timer_info = timer_info_find(timer);
     NVIC_InitTypeDef nvic_init_def;
@@ -90,7 +88,7 @@ void timer_update_init(TIM_TypeDef *timer, bool internal_clock, uint16_t prescal
     if (!timer_info)
     {
         TRACE("Invalid timer %p.\n", timer);
-        return;
+        return false;
     }
 
     timer_time_base_init(timer_info, prescaler, period, internal_clock);
@@ -105,9 +103,10 @@ void timer_update_init(TIM_TypeDef *timer, bool internal_clock, uint16_t prescal
     NVIC_Init(&nvic_init_def);
 
     TIM_Cmd(timer, ENABLE);
+    return true;
 }
 
-void timer_pwm_init(TIM_TypeDef *timer, int channel, uint32_t frequency, uint16_t period_count)
+bool timer_pwm_init(TIM_TypeDef *timer, int channel, uint32_t frequency, uint16_t period_count)
 {
     const struct timer_info *timer_info = timer_info_find(timer);
     TIM_OCInitTypeDef timer_oc_init_def;
@@ -115,15 +114,18 @@ void timer_pwm_init(TIM_TypeDef *timer, int channel, uint32_t frequency, uint16_
     if (!timer_info)
     {
         TRACE("Invalid timer %p.\n", timer);
-        return;
+        return false;
     }
 
     if (channel < 1 || channel > 4 || !frequency || !period_count)
     {
         TRACE("Invalid argument: channel %d, frequency %u, period_count %u.\n",
                 channel, frequency, period_count);
-        return;
+        return false;
     }
+
+    if (!gpio_pin_init(&timer_info->channel_pins[channel - 1], GPIO_Mode_AF_PP))
+        return false;
 
     timer_time_base_init(timer_info, true, SYSTEM_CLOCK_HZ / frequency / period_count - 1, period_count - 1);
 
@@ -136,58 +138,40 @@ void timer_pwm_init(TIM_TypeDef *timer, int channel, uint32_t frequency, uint16_
     switch (channel)
     {
         case 1:
-            gpio_init(timer_info->channel1_gpio, timer_info->channel1_pin, GPIO_Mode_AF_PP);
             TIM_OC1Init(timer, &timer_oc_init_def);
             break;
         case 2:
-            gpio_init(timer_info->channel2_gpio, timer_info->channel2_pin, GPIO_Mode_AF_PP);
             TIM_OC2Init(timer, &timer_oc_init_def);
             break;
         case 3:
-            gpio_init(timer_info->channel3_gpio, timer_info->channel3_pin, GPIO_Mode_AF_PP);
             TIM_OC3Init(timer, &timer_oc_init_def);
             break;
         case 4:
-            gpio_init(timer_info->channel4_gpio, timer_info->channel4_pin, GPIO_Mode_AF_PP);
             TIM_OC4Init(timer, &timer_oc_init_def);
             break;
         default:
             assert(0); /* Should never be here. */
     }
 
-    TRACE("Initialized %s, channel %d.\n", timer_info->name, channel);
-
     TIM_Cmd(timer, ENABLE);
+    TRACE("Inited %s, channel %d.\n", timer_info->name, channel);
+    return true;
 }
 
-void timer_servo_init(TIM_TypeDef *timer, int channel)
+bool timer_pwm_set_pulse(TIM_TypeDef *timer, int channel, uint16_t pulse)
 {
-    TRACE("timer %p, channel %d.\n", timer, channel);
-    timer_pwm_init(timer, channel, SERVO_FREQUENCY, SERVO_PERIOD_COUNT);
-}
+    const struct timer_info *timer_info = timer_info_find(timer);
 
-void timer_servo_set_angle(TIM_TypeDef *timer, int channel, uint32_t angle)
-{
-    TRACE("timer %p, channel %d, angle %u.\n", timer, channel, angle);
-
-    /* Angle should be 0~180. */
-    if (angle > 180)
+    if (!timer_info)
     {
-        TRACE("Invalid angle %u.\n", angle);
-        return;
+        TRACE("Invalid timer %p.\n", timer);
+        return false;
     }
 
-    timer_pwm_set_pulse(timer, channel, SERVO_PERIOD_COUNT / 40 + SERVO_PERIOD_COUNT * angle / 1800 );
-}
-
-void timer_pwm_set_pulse(TIM_TypeDef *timer, int channel, uint16_t pulse)
-{
-    TRACE("timer %p, channel %d, pulse %u.\n", timer, channel, pulse);
-
-    if (!timer || channel < 1 || channel > 4)
+    if (channel < 1 || channel > 4)
     {
-        TRACE("Invalid argument: timer %p, channel %u, pulse %u.\n", timer, channel, pulse);
-        return;
+        TRACE("Invalid argument: channel %u, pulse %u.\n", channel, pulse);
+        return false;
     }
 
     switch (channel)
@@ -207,6 +191,30 @@ void timer_pwm_set_pulse(TIM_TypeDef *timer, int channel, uint16_t pulse)
         default:
             assert(0); /* Should never be here. */
     }
+
+    TRACE("Set %s channel %d pulse to %u.\n", timer_info->name, channel, pulse);
+
+    return true;
+}
+
+bool servo_init(TIM_TypeDef *timer, int channel)
+{
+    TRACE("timer %p, channel %d.\n", timer, channel);
+    return timer_pwm_init(timer, channel, SERVO_FREQUENCY, SERVO_PERIOD_COUNT);
+}
+
+bool servo_set_angle(TIM_TypeDef *timer, int channel, uint32_t angle)
+{
+    TRACE("timer %p, channel %d, angle %u.\n", timer, channel, angle);
+
+    /* Angle should be 0~180. */
+    if (angle > 180)
+    {
+        TRACE("Invalid angle %u.\n", angle);
+        return false;
+    }
+
+    return timer_pwm_set_pulse(timer, channel, SERVO_PERIOD_COUNT / 40 + SERVO_PERIOD_COUNT * angle / 1800);
 }
 
 void delay_us(uint32_t us)

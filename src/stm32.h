@@ -20,8 +20,15 @@
 
 typedef void (*irq_handler)(void);
 
+struct gpio_pin
+{
+    GPIO_TypeDef *gpio;
+    uint16_t pin;
+};
+
 /* GPIO. */
 bool gpio_init(GPIO_TypeDef *gpio, uint16_t pins, GPIOMode_TypeDef mode);
+bool gpio_pin_init(const struct gpio_pin *pin, GPIOMode_TypeDef mode);
 bool exti_init(GPIO_TypeDef *gpio, uint16_t pin, irq_handler handler,
         EXTITrigger_TypeDef trigger, uint8_t preemption_pri, uint8_t sub_pri);
 
@@ -35,11 +42,11 @@ bool usart_has_data(USART_TypeDef *usart);
 uint8_t usart_wait_byte(USART_TypeDef *usart);
 
 /* Timer. */
-void timer_update_init(TIM_TypeDef *timer, bool internal_clock, uint16_t prescaler, uint16_t period);
-void timer_pwm_init(TIM_TypeDef *timer, int channel, uint32_t frequency, uint16_t period);
-void timer_pwm_set_pulse(TIM_TypeDef *timer, int channel, uint16_t pulse);
-void timer_servo_init(TIM_TypeDef *timer, int channel);
-void timer_servo_set_angle(TIM_TypeDef *timer, int channel, uint32_t angle);
+bool timer_update_init(TIM_TypeDef *timer, bool internal_clock, uint16_t prescaler, uint16_t period);
+bool timer_pwm_init(TIM_TypeDef *timer, int channel, uint32_t frequency, uint16_t period_count);
+bool timer_pwm_set_pulse(TIM_TypeDef *timer, int channel, uint16_t pulse);
+bool servo_init(TIM_TypeDef *timer, int channel);
+bool servo_set_angle(TIM_TypeDef *timer, int channel, uint32_t angle);
 void delay_us(uint32_t us);
 void delay_ms(uint32_t ms);
 

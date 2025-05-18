@@ -100,6 +100,11 @@ bool gpio_init(GPIO_TypeDef *gpio, uint16_t pins, GPIOMode_TypeDef mode)
     return true;
 }
 
+bool gpio_pin_init(const struct gpio_pin *pin, GPIOMode_TypeDef mode)
+{
+    return gpio_init(pin->gpio, pin->pin, mode);
+}
+
 bool exti_init(GPIO_TypeDef *gpio, uint16_t pin, irq_handler handler,
         EXTITrigger_TypeDef trigger, uint8_t preemption_pri, uint8_t sub_pri)
 {
