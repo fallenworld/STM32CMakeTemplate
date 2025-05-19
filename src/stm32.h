@@ -42,11 +42,14 @@ bool usart_has_data(USART_TypeDef *usart);
 uint8_t usart_wait_byte(USART_TypeDef *usart);
 
 /* Timer. */
-bool timer_update_init(TIM_TypeDef *timer, bool internal_clock, uint16_t prescaler, uint16_t period);
-bool timer_pwm_init(TIM_TypeDef *timer, int channel, uint32_t frequency, uint16_t period_count);
-bool timer_pwm_set_pulse(TIM_TypeDef *timer, int channel, uint16_t pulse);
-bool servo_init(TIM_TypeDef *timer, int channel);
-bool servo_set_angle(TIM_TypeDef *timer, int channel, uint32_t angle);
+bool timer_update_init(TIM_TypeDef *timer, bool internal_clock, uint32_t prescaler_factor, uint32_t period_count);
+bool timer_pwm_init(TIM_TypeDef *timer, uint16_t channel, uint32_t frequency, uint32_t period_count);
+bool timer_pwm_set_pulse(TIM_TypeDef *timer, uint16_t channel, uint16_t pulse);
+bool timer_input_capture_init(TIM_TypeDef *timer, uint16_t channel, bool use_pwmi);
+uint32_t timer_input_capture_get_frequency(TIM_TypeDef *timer, uint16_t channel);
+uint16_t timer_input_capture_get_duty(TIM_TypeDef *timer, uint16_t channel);
+bool servo_init(TIM_TypeDef *timer, uint16_t channel);
+bool servo_set_angle(TIM_TypeDef *timer, uint16_t channel, uint32_t angle);
 void delay_us(uint32_t us);
 void delay_ms(uint32_t ms);
 
@@ -62,7 +65,7 @@ void __assert_func(const char *file, int line, const char *func, const char *exp
 void assert_failed(uint8_t *file, uint32_t line);
 
 #ifdef DEBUG
-#define TRACE(format, ...) debug_trace(__FILE_NAME__, __LINE__, __func__, format, ##__VA_ARGS__);
+#define TRACE(format, ...) debug_trace(__FILE_NAME__, __LINE__, __func__, format, ##__VA_ARGS__)
 #else
 #define TRACE
 #endif /* DEBUG */

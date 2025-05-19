@@ -19,11 +19,15 @@ int main(void)
     debug_init(USART1, DEBUG_LED_GPIO, DEBUG_LED_PIN);
     exti_init(GPIOB, GPIO_Pin_9, func, EXTI_Trigger_Falling, 1, 1);
 
-    servo_init(TIM2, 1);
-    servo_set_angle(TIM2, 1, 180);
+    timer_pwm_init(TIM2, TIM_Channel_1, 1000, 100);
+    timer_pwm_set_pulse(TIM2, TIM_Channel_1, 16);
+    timer_input_capture_init(TIM3, TIM_Channel_1, true);
 
     while (1)
     {
-
+        TRACE("Frequency: %u, duty %u.\n",
+                timer_input_capture_get_frequency(TIM3, TIM_Channel_1),
+                timer_input_capture_get_duty(TIM3, TIM_Channel_1));
+        delay_ms(500);
     }
 }

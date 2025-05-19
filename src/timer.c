@@ -4,9 +4,32 @@
 
 #include "stm32.h"
 
-#define SYSTEM_CLOCK_HZ    (72 * 1000 * 1000)
-#define SERVO_FREQUENCY    (50)
-#define SERVO_PERIOD_COUNT (2000)
+#define SYSTEM_CLOCK_HZ (72 * 1000 * 1000)
+#define SERVO_FREQUENCY 50
+#define SERVO_PERIOD_COUNT 2000
+#define INPUT_CAPTURE_PERIOD_COUNT (UINT16_MAX + 1)
+#define INPUT_CAPTURE_PRESCALER_FACTOR 72
+
+#define TIM_CHANNEL_NUM(channel) ((channel) / (TIM_Channel_2 - TIM_Channel_1))
+
+#define CHECK_TIMER(timer, timer_info, fail_ret) do \
+{                                                   \
+    if (!(timer_info))                              \
+    {                                               \
+        TRACE("Invalid timer %p.\n", timer);        \
+        return fail_ret;                            \
+    }                                               \
+} while (0)
+
+#define CHECK_TIMER_CHANNEL(timer, timer_info, channel, fail_ret) do \
+{                                                                    \
+    CHECK_TIMER(timer, timer_info, fail_ret);                        \
+    if (!IS_TIM_CHANNEL(channel))                                    \
+    {                                                                \
+        TRACE("Invalid channel: channel %u.\n", channel);            \
+        return fail_ret;                                             \
+    }                                                                \
+} while (0)
 
 struct timer_info
 {
@@ -48,27 +71,6 @@ static const struct timer_info timer_info_list[] =
     },
 };
 
-static void timer_time_base_init(const struct timer_info *timer_info,
-        bool internal_clock, uint16_t prescaler, uint16_t period)
-{
-    TIM_TimeBaseInitTypeDef timer_init_def;
-
-    TRACE("timer %s, internal_clock %s, prescaler %u, period %u.\n",
-            timer_info->name, internal_clock ? "true" : "false", prescaler, period);
-
-    abp1_periph_enable(timer_info->periph);
-
-    if (internal_clock)
-        TIM_InternalClockConfig(timer_info->timer);
-    else
-        TIM_ETRClockMode2Config(timer_info->timer, TIM_ExtTRGPSC_OFF, TIM_ExtTRGPolarity_NonInverted, 0x0f);
-
-    TIM_TimeBaseStructInit(&timer_init_def);
-    timer_init_def.TIM_Prescaler = prescaler;
-    timer_init_def.TIM_Period = period;
-    TIM_TimeBaseInit(timer_info->timer, &timer_init_def);
-}
-
 static const struct timer_info *timer_info_find(const TIM_TypeDef *timer)
 {
     unsigned int i;
@@ -80,18 +82,35 @@ static const struct timer_info *timer_info_find(const TIM_TypeDef *timer)
     return NULL;
 }
 
-bool timer_update_init(TIM_TypeDef *timer, bool internal_clock, uint16_t prescaler, uint16_t period)
+static void timer_time_base_init(const struct timer_info *timer_info,
+        bool internal_clock, uint32_t prescaler_factor, uint32_t period_count)
+{
+    TIM_TimeBaseInitTypeDef timer_init_def;
+
+    abp1_periph_enable(timer_info->periph);
+
+    if (internal_clock)
+        TIM_InternalClockConfig(timer_info->timer);
+    else
+        TIM_ETRClockMode2Config(timer_info->timer, TIM_ExtTRGPSC_OFF, TIM_ExtTRGPolarity_NonInverted, 0x0f);
+
+    TIM_TimeBaseStructInit(&timer_init_def);
+    timer_init_def.TIM_Prescaler = prescaler_factor - 1;
+    timer_init_def.TIM_Period = period_count - 1;
+    TIM_TimeBaseInit(timer_info->timer, &timer_init_def);
+
+    TRACE("Inited %s time base, use %s clock, prescaler_factor %u, period_count %u.\n",
+            timer_info->name, internal_clock ? "internal" : "external", prescaler_factor, period_count);
+}
+
+bool timer_update_init(TIM_TypeDef *timer, bool internal_clock, uint32_t prescaler_factor, uint32_t period_count)
 {
     const struct timer_info *timer_info = timer_info_find(timer);
     NVIC_InitTypeDef nvic_init_def;
 
-    if (!timer_info)
-    {
-        TRACE("Invalid timer %p.\n", timer);
-        return false;
-    }
+    CHECK_TIMER(timer, timer_info, false);
 
-    timer_time_base_init(timer_info, prescaler, period, internal_clock);
+    timer_time_base_init(timer_info, internal_clock, prescaler_factor, period_count);
 
     TIM_ClearFlag(timer, TIM_FLAG_Update);
     TIM_ITConfig(timer, TIM_IT_Update, ENABLE);
@@ -106,28 +125,30 @@ bool timer_update_init(TIM_TypeDef *timer, bool internal_clock, uint16_t prescal
     return true;
 }
 
-bool timer_pwm_init(TIM_TypeDef *timer, int channel, uint32_t frequency, uint16_t period_count)
+bool timer_pwm_init(TIM_TypeDef *timer, uint16_t channel, uint32_t frequency, uint32_t period_count)
 {
+    uint32_t prescaler_factor = SYSTEM_CLOCK_HZ / (frequency * period_count);
     const struct timer_info *timer_info = timer_info_find(timer);
     TIM_OCInitTypeDef timer_oc_init_def;
 
-    if (!timer_info)
+    CHECK_TIMER_CHANNEL(timer, timer_info, channel, false);
+
+    if (!frequency || !period_count)
     {
-        TRACE("Invalid timer %p.\n", timer);
+        TRACE("Invalid frequency or period count: frequency %u, period_count %u.\n", frequency, period_count);
         return false;
     }
 
-    if (channel < 1 || channel > 4 || !frequency || !period_count)
+    if (SYSTEM_CLOCK_HZ % (frequency * period_count) != 0)
     {
-        TRACE("Invalid argument: channel %d, frequency %u, period_count %u.\n",
-                channel, frequency, period_count);
-        return false;
+        TRACE("Clock frequency %u can't be evenly divided by %lu * %lu, actual output frequency: %lu.\n",
+                SYSTEM_CLOCK_HZ, frequency, period_count, SYSTEM_CLOCK_HZ / (prescaler_factor * period_count));
     }
 
-    if (!gpio_pin_init(&timer_info->channel_pins[channel - 1], GPIO_Mode_AF_PP))
+    if (!gpio_pin_init(&timer_info->channel_pins[TIM_CHANNEL_NUM(channel)], GPIO_Mode_AF_PP))
         return false;
 
-    timer_time_base_init(timer_info, true, SYSTEM_CLOCK_HZ / frequency / period_count - 1, period_count - 1);
+    timer_time_base_init(timer_info, true, prescaler_factor, period_count);
 
     TIM_OCStructInit(&timer_oc_init_def);
     timer_oc_init_def.TIM_OCMode = TIM_OCMode_PWM1;
@@ -137,16 +158,16 @@ bool timer_pwm_init(TIM_TypeDef *timer, int channel, uint32_t frequency, uint16_
 
     switch (channel)
     {
-        case 1:
+        case TIM_Channel_1:
             TIM_OC1Init(timer, &timer_oc_init_def);
             break;
-        case 2:
+        case TIM_Channel_2:
             TIM_OC2Init(timer, &timer_oc_init_def);
             break;
-        case 3:
+        case TIM_Channel_3:
             TIM_OC3Init(timer, &timer_oc_init_def);
             break;
-        case 4:
+        case TIM_Channel_4:
             TIM_OC4Init(timer, &timer_oc_init_def);
             break;
         default:
@@ -155,37 +176,28 @@ bool timer_pwm_init(TIM_TypeDef *timer, int channel, uint32_t frequency, uint16_
 
     TIM_Cmd(timer, ENABLE);
     TRACE("Inited %s, channel %d.\n", timer_info->name, channel);
+
     return true;
 }
 
-bool timer_pwm_set_pulse(TIM_TypeDef *timer, int channel, uint16_t pulse)
+bool timer_pwm_set_pulse(TIM_TypeDef *timer, uint16_t channel, uint16_t pulse)
 {
     const struct timer_info *timer_info = timer_info_find(timer);
 
-    if (!timer_info)
-    {
-        TRACE("Invalid timer %p.\n", timer);
-        return false;
-    }
-
-    if (channel < 1 || channel > 4)
-    {
-        TRACE("Invalid argument: channel %u, pulse %u.\n", channel, pulse);
-        return false;
-    }
+    CHECK_TIMER_CHANNEL(timer, timer_info, channel, false);
 
     switch (channel)
     {
-        case 1:
+        case TIM_Channel_1:
             TIM_SetCompare1(timer, pulse);
             break;
-        case 2:
+        case TIM_Channel_2:
             TIM_SetCompare2(timer, pulse);
             break;
-        case 3:
+        case TIM_Channel_3:
             TIM_SetCompare3(timer, pulse);
             break;
-        case 4:
+        case TIM_Channel_4:
             TIM_SetCompare4(timer, pulse);
             break;
         default:
@@ -197,13 +209,85 @@ bool timer_pwm_set_pulse(TIM_TypeDef *timer, int channel, uint16_t pulse)
     return true;
 }
 
-bool servo_init(TIM_TypeDef *timer, int channel)
+bool timer_input_capture_init(TIM_TypeDef *timer, uint16_t channel, bool use_pwm_input)
+{
+    const struct timer_info *timer_info = timer_info_find(timer);
+    TIM_ICInitTypeDef timer_ic_init_def;
+
+    CHECK_TIMER_CHANNEL(timer, timer_info, channel, 0);
+
+    if (use_pwm_input && channel != TIM_Channel_1 && channel != TIM_Channel_2)
+    {
+        TRACE("Invalid channel %u for PWM input, use TIM1/TIM2.\n", TIM_CHANNEL_NUM(channel));
+        return false;
+    }
+
+    if (!gpio_pin_init(&timer_info->channel_pins[TIM_CHANNEL_NUM(channel)], GPIO_Mode_IN_FLOATING))
+        return false;
+
+    timer_time_base_init(timer_info, true, INPUT_CAPTURE_PRESCALER_FACTOR, INPUT_CAPTURE_PERIOD_COUNT);
+
+    TIM_ICStructInit(&timer_ic_init_def);
+    timer_ic_init_def.TIM_Channel = channel;
+    timer_ic_init_def.TIM_ICFilter = 0x0f;
+    if (use_pwm_input)
+        TIM_PWMIConfig(timer, &timer_ic_init_def);
+    else
+        TIM_ICInit(timer, &timer_ic_init_def);
+
+    TIM_SelectInputTrigger(timer, TIM_TS_TI1FP1);
+    TIM_SelectSlaveMode(timer, TIM_SlaveMode_Reset);
+
+    TIM_Cmd(timer, ENABLE);
+    TRACE("Inited input capture on %s, channel %d.\n", timer_info->name, channel);
+
+    return true;
+}
+
+uint32_t timer_input_capture_get_frequency(TIM_TypeDef *timer, uint16_t channel)
+{
+    const struct timer_info *timer_info = timer_info_find(timer);
+
+    CHECK_TIMER_CHANNEL(timer, timer_info, channel, false);
+
+    switch (channel)
+    {
+        case TIM_Channel_1:
+            return SYSTEM_CLOCK_HZ / INPUT_CAPTURE_PRESCALER_FACTOR / (TIM_GetCapture1(timer) + 1);
+        case TIM_Channel_2:
+            return SYSTEM_CLOCK_HZ / INPUT_CAPTURE_PRESCALER_FACTOR / (TIM_GetCapture2(timer) + 1);
+        case TIM_Channel_3:
+            return SYSTEM_CLOCK_HZ / INPUT_CAPTURE_PRESCALER_FACTOR / (TIM_GetCapture3(timer) + 1);
+        case TIM_Channel_4:
+            return SYSTEM_CLOCK_HZ / INPUT_CAPTURE_PRESCALER_FACTOR / (TIM_GetCapture4(timer) + 1);
+        default:
+            assert(0); /* Should never be here. */
+    }
+}
+
+uint16_t timer_input_capture_get_duty(TIM_TypeDef *timer, uint16_t channel)
+{
+    const struct timer_info *timer_info = timer_info_find(timer);
+
+    CHECK_TIMER_CHANNEL(timer, timer_info, channel, false);
+
+    if (channel == TIM_Channel_1)
+        return (TIM_GetCapture2(timer) + 1) * 100 / (TIM_GetCapture1(timer) + 1);
+    if (channel == TIM_Channel_2)
+        return (TIM_GetCapture1(timer) + 1) * 100 / (TIM_GetCapture2(timer) + 1);
+
+    TRACE("Invalid channel %u for PWM input, use TIM1/TIM2.\n", TIM_CHANNEL_NUM(channel));
+
+    return 0;
+}
+
+bool servo_init(TIM_TypeDef *timer, uint16_t channel)
 {
     TRACE("timer %p, channel %d.\n", timer, channel);
     return timer_pwm_init(timer, channel, SERVO_FREQUENCY, SERVO_PERIOD_COUNT);
 }
 
-bool servo_set_angle(TIM_TypeDef *timer, int channel, uint32_t angle)
+bool servo_set_angle(TIM_TypeDef *timer, uint16_t channel, uint32_t angle)
 {
     TRACE("timer %p, channel %d, angle %u.\n", timer, channel, angle);
 
