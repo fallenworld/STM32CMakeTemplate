@@ -48,6 +48,8 @@ bool timer_pwm_set_pulse(TIM_TypeDef *timer, uint16_t channel, uint16_t pulse);
 bool timer_input_capture_init(TIM_TypeDef *timer, uint16_t channel, bool use_pwmi);
 uint32_t timer_input_capture_get_frequency(TIM_TypeDef *timer, uint16_t channel);
 uint16_t timer_input_capture_get_duty(TIM_TypeDef *timer, uint16_t channel);
+bool encoder_init(TIM_TypeDef *timer);
+uint16_t encoder_get_count(TIM_TypeDef *timer);
 bool servo_init(TIM_TypeDef *timer, uint16_t channel);
 bool servo_set_angle(TIM_TypeDef *timer, uint16_t channel, uint32_t angle);
 void delay_us(uint32_t us);
