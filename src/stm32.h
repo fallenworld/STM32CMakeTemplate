@@ -55,6 +55,12 @@ bool servo_set_angle(TIM_TypeDef *timer, uint16_t channel, uint32_t angle);
 void delay_us(uint32_t us);
 void delay_ms(uint32_t ms);
 
+/* ADC. */
+bool adc_init(ADC_TypeDef *adc);
+bool adc_init_channel(ADC_TypeDef *adc, uint8_t channel);
+void adc_start_convert(ADC_TypeDef *adc, uint8_t channel);
+uint16_t adc_wait_value(ADC_TypeDef *adc);
+
 /* Interrupt handlers. */
 bool exti_set_handler(uint32_t exti_line, irq_handler handler);
 
