@@ -61,6 +61,11 @@ bool adc_init_channel(ADC_TypeDef *adc, uint8_t channel);
 void adc_start_convert(ADC_TypeDef *adc, uint8_t channel);
 uint16_t adc_wait_value(ADC_TypeDef *adc);
 
+/* DMA. */
+bool dma_init(DMA_Channel_TypeDef *channel, void *src_addr, void *dst_addr, uint32_t data_size);
+void dma_start_transfer(DMA_Channel_TypeDef *channel, uint16_t data_count);
+void dma_wait_transfer(DMA_Channel_TypeDef *channel);
+
 /* Interrupt handlers. */
 bool exti_set_handler(uint32_t exti_line, irq_handler handler);
 
@@ -105,6 +110,11 @@ static inline bool is_abp2_periph_enabled(uint32_t periph)
     return !!(RCC->APB2ENR & periph);
 }
 
+static inline bool is_ahb_periph_enabled(uint32_t periph)
+{
+    return !!(RCC->AHBENR & periph);
+}
+
 static inline void abp1_periph_enable(uint32_t periph)
 {
     if (!is_abp1_periph_enabled(periph))
@@ -115,6 +125,12 @@ static inline void abp2_periph_enable(uint32_t periph)
 {
     if (!is_abp2_periph_enabled(periph))
         RCC_APB2PeriphClockCmd(periph, ENABLE);
+}
+
+static inline void ahb_periph_enable(uint32_t periph)
+{
+    if (!is_ahb_periph_enabled(periph))
+        RCC_AHBPeriphClockCmd(periph, ENABLE);
 }
 
 #endif /* __STM32_H__ */

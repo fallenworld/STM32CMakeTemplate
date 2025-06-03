@@ -88,6 +88,7 @@ set(LIBRARY_SOURCES
 set(USER_SOURCES
         src/adc.c
         src/debug.c
+        src/dma.c
         src/gpio.c
         src/irq_handlers.c
         src/main.c
