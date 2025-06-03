@@ -10,7 +10,7 @@ static uint32_t dma_channel_num(DMA_Channel_TypeDef *channel)
 }
 
 bool dma_init(DMA_Channel_TypeDef *channel,
-        void *src_addr, void *dst_addr, uint32_t data_size)
+        void *src_addr, void *dst_addr, uint32_t data_size, bool m2m, bool periph_inc, bool circular)
 {
     DMA_InitTypeDef dma_init_type_def;
 
@@ -18,10 +18,11 @@ bool dma_init(DMA_Channel_TypeDef *channel,
 
     DMA_StructInit(&dma_init_type_def);
     dma_init_type_def.DMA_PeripheralBaseAddr = (uint32_t)src_addr;
-    dma_init_type_def.DMA_PeripheralInc = DMA_PeripheralInc_Enable;
+    dma_init_type_def.DMA_PeripheralInc = periph_inc ? DMA_PeripheralInc_Enable: DMA_PeripheralInc_Disable;
     dma_init_type_def.DMA_MemoryBaseAddr = (uint32_t)dst_addr;
     dma_init_type_def.DMA_MemoryInc = DMA_MemoryInc_Enable;
-    dma_init_type_def.DMA_M2M = DMA_M2M_Enable;
+    dma_init_type_def.DMA_M2M = m2m ? DMA_M2M_Enable : DMA_M2M_Disable;
+    dma_init_type_def.DMA_Mode = circular ? DMA_Mode_Circular : DMA_Mode_Normal;
     dma_init_type_def.DMA_BufferSize = 1;
     switch (data_size)
     {
@@ -47,6 +48,12 @@ bool dma_init(DMA_Channel_TypeDef *channel,
             dma_channel_num(channel), src_addr, dst_addr, data_size);
 
     return true;
+}
+
+bool dma_m2m_init(DMA_Channel_TypeDef *channel,
+        void *src_addr, void *dst_addr, uint32_t data_size)
+{
+    return dma_init(channel, src_addr, dst_addr, data_size, true, true, false);
 }
 
 void dma_start_transfer(DMA_Channel_TypeDef *channel, uint16_t data_count)

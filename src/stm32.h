@@ -56,13 +56,16 @@ void delay_us(uint32_t us);
 void delay_ms(uint32_t ms);
 
 /* ADC. */
-bool adc_init(ADC_TypeDef *adc);
+bool adc_single_init(ADC_TypeDef *adc);
+bool adc_dma_init(ADC_TypeDef *adc, uint8_t adc_channel_count, void *dst_addr);
 bool adc_init_channel(ADC_TypeDef *adc, uint8_t channel);
-void adc_start_convert(ADC_TypeDef *adc, uint8_t channel);
+void adc_start_single_convert(ADC_TypeDef *adc, uint8_t channel);
 uint16_t adc_wait_value(ADC_TypeDef *adc);
 
 /* DMA. */
-bool dma_init(DMA_Channel_TypeDef *channel, void *src_addr, void *dst_addr, uint32_t data_size);
+bool dma_init(DMA_Channel_TypeDef *channel,
+        void *src_addr, void *dst_addr, uint32_t data_size, bool m2m, bool periph_inc, bool circular);
+bool dma_m2m_init(DMA_Channel_TypeDef *channel, void *src_addr, void *dst_addr, uint32_t data_size);
 void dma_start_transfer(DMA_Channel_TypeDef *channel, uint16_t data_count);
 void dma_wait_transfer(DMA_Channel_TypeDef *channel);
 

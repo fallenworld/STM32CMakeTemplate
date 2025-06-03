@@ -10,8 +10,9 @@
 #define TEST_EXTI (1 << 0)
 #define TEST_PWMI (1 << 1)
 #define TEST_ENCODER (1 << 2)
-#define TEST_ADC (1 << 3)
+#define TEST_SINGLE_ADC (1 << 3)
 #define TEST_DMA (1 << 4)
+#define TEST_ADC_DMA (1 << 5)
 
 void exti_irq_handler(void)
 {
@@ -50,11 +51,11 @@ void test_pwmi(void)
 
 void test_adc(void)
 {
-    adc_init(ADC1);
+    adc_single_init(ADC1);
     adc_init_channel(ADC1, ADC_Channel_2);
     while (1)
     {
-        adc_start_convert(ADC1, ADC_Channel_2);
+        adc_start_single_convert(ADC1, ADC_Channel_2);
         printf("adc value: %u.\n", adc_wait_value(ADC1));
         delay_ms(20);
     }
@@ -65,7 +66,7 @@ void test_dma(void)
     uint32_t src[4] = {1, 2, 3, 4}, dst[4] = {0};
     unsigned int i;
 
-    dma_init(DMA1_Channel1, src, dst, sizeof(src[0]));
+    dma_m2m_init(DMA1_Channel1, src, dst, sizeof(src[0]));
 
     while (1)
     {
@@ -85,6 +86,22 @@ void test_dma(void)
     }
 }
 
+void test_adc_dma(void)
+{
+    uint16_t adc_value[2];
+
+    adc_dma_init(ADC1, 2, adc_value);
+    ADC_RegularChannelConfig(ADC1, ADC_Channel_2, 1, ADC_SampleTime_55Cycles5);
+    ADC_RegularChannelConfig(ADC1, ADC_Channel_3, 2, ADC_SampleTime_55Cycles5);
+    ADC_SoftwareStartConvCmd(ADC1, ENABLE);
+
+    while (1)
+    {
+        printf("adc value: %u, %u.\n", adc_value[0], adc_value[1]);
+        delay_ms(20);
+    }
+}
+
 int main(void)
 {
     uint32_t test_case;
@@ -92,7 +109,7 @@ int main(void)
     NVIC_PriorityGroupConfig(NVIC_PriorityGroup_2);
     debug_init(USART1, DEBUG_LED_GPIO, DEBUG_LED_PIN);
 
-    test_case = TEST_EXTI | TEST_DMA;
+    test_case = TEST_EXTI | TEST_ADC_DMA;
 
     if (test_case & TEST_EXTI)
         test_exti();
@@ -100,10 +117,12 @@ int main(void)
         test_pwmi();
     if (test_case & TEST_ENCODER)
         test_encoder();
-    if (test_case & TEST_ADC)
+    if (test_case & TEST_SINGLE_ADC)
         test_adc();
     if (test_case & TEST_DMA)
         test_dma();
+    if (test_case & TEST_ADC_DMA)
+        test_adc_dma();
 
     return 0; /* Should never be here. */
 }

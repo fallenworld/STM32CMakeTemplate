@@ -29,13 +29,14 @@ struct adc_info
     ADC_TypeDef *adc;
     const char *name;
     uint32_t periph;
+    DMA_Channel_TypeDef *dma_channel;
     struct gpio_pin channel_pins[10];
 };
 
 static const struct adc_info adc_info[] =
 {
     {
-        ADC1, "ADC1", RCC_APB2Periph_ADC1,
+        ADC1, "ADC1", RCC_APB2Periph_ADC1, DMA1_Channel1,
         {
             {GPIOA, GPIO_Pin_0},
             {GPIOA, GPIO_Pin_1},
@@ -50,7 +51,7 @@ static const struct adc_info adc_info[] =
         }
     },
     {
-        ADC2, "ADC2", RCC_APB2Periph_ADC2,
+        ADC2, "ADC2", RCC_APB2Periph_ADC2, NULL,
         {
             {GPIOA, GPIO_Pin_0},
             {GPIOA, GPIO_Pin_1},
@@ -77,26 +78,62 @@ static const struct adc_info *adc_info_find(const ADC_TypeDef *adc)
     return NULL;
 }
 
-bool adc_init(ADC_TypeDef *adc)
+static void adc_calibrate(ADC_TypeDef *adc)
 {
-    const struct adc_info *adc_info = adc_info_find(adc);
-    ADC_InitTypeDef adc_init_type_def;
+    ADC_ResetCalibration(adc);
+    while (ADC_GetResetCalibrationStatus(adc) != RESET) {}
+    ADC_StartCalibration(adc);
+    while (ADC_GetCalibrationStatus(adc) != RESET) {}
+}
 
-    CHECK_ADC(adc, adc_info, false);
+static void adc_init(const struct adc_info *adc_info, uint8_t channel_count, bool scan_mode, bool continuous_mode)
+{
+    ADC_InitTypeDef adc_init_type_def;
 
     abp2_periph_enable(adc_info->periph);
     RCC_ADCCLKConfig(RCC_PCLK2_Div6);
 
     ADC_StructInit(&adc_init_type_def);
     adc_init_type_def.ADC_ExternalTrigConv = ADC_ExternalTrigConv_None;
-    ADC_Init(adc, &adc_init_type_def);
+    adc_init_type_def.ADC_NbrOfChannel = channel_count;
+    adc_init_type_def.ADC_ScanConvMode = scan_mode ? ENABLE : DISABLE;
+    adc_init_type_def.ADC_ContinuousConvMode = continuous_mode ? ENABLE : DISABLE;
+    ADC_Init(adc_info->adc, &adc_init_type_def);
+}
 
+bool adc_single_init(ADC_TypeDef *adc)
+{
+    const struct adc_info *adc_info = adc_info_find(adc);
+
+    CHECK_ADC(adc, adc_info, false);
+
+    adc_init(adc_info, 1, false, false);
     ADC_Cmd(adc, ENABLE);
+    adc_calibrate(adc);
 
-    ADC_ResetCalibration(adc);
-    while (ADC_GetResetCalibrationStatus(adc) != RESET) {}
-    ADC_StartCalibration(adc);
-    while (ADC_GetCalibrationStatus(adc) != RESET) {}
+    TRACE("Inited %s.\n", adc_info->name);
+
+    return true;
+}
+
+bool adc_dma_init(ADC_TypeDef *adc, uint8_t adc_channel_count, void *dst_addr)
+{
+    const struct adc_info *adc_info = adc_info_find(adc);
+
+    CHECK_ADC(adc, adc_info, false);
+
+    if (!adc_info->dma_channel)
+    {
+        TRACE("%s does not support DMA.\n", adc_info->name);
+        return false;
+    }
+
+    adc_init(adc_info, adc_channel_count, true, true);
+    dma_init(adc_info->dma_channel, (void *)&adc->DR, dst_addr, sizeof(uint16_t), false, false, true);
+    dma_start_transfer(adc_info->dma_channel, adc_channel_count);
+    ADC_DMACmd(adc, ENABLE);
+    ADC_Cmd(adc, ENABLE);
+    adc_calibrate(adc);
 
     TRACE("Inited %s.\n", adc_info->name);
 
@@ -110,7 +147,7 @@ bool adc_init_channel(ADC_TypeDef *adc, uint8_t channel)
     return gpio_pin_init(&adc_info->channel_pins[channel], GPIO_Mode_AIN);
 }
 
-void adc_start_convert(ADC_TypeDef *adc, uint8_t channel)
+void adc_start_single_convert(ADC_TypeDef *adc, uint8_t channel)
 {
     ADC_RegularChannelConfig(adc, channel, 1, ADC_SampleTime_55Cycles5);
     ADC_SoftwareStartConvCmd(adc, ENABLE);
