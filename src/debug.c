@@ -18,7 +18,7 @@ bool debug_init(USART_TypeDef *usart, GPIO_TypeDef *debug_led_gpio, uint16_t deb
     setvbuf(stdout, NULL, _IONBF, 0);
     setvbuf(stderr, NULL, _IONBF, 0);
 
-    if (!usart_init(usart))
+    if (!usart_simple_init(usart))
         return false;
 
     if (debug_led_gpio && debug_led_pin)

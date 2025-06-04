@@ -35,7 +35,9 @@ bool exti_init(GPIO_TypeDef *gpio, uint16_t pin, irq_handler handler,
 /* USART. */
 const struct usart_info *usart_info_find(const USART_TypeDef *usart);
 const char *usart_name(const USART_TypeDef *usart);
-bool usart_init(USART_TypeDef *usart);
+bool usart_init(USART_TypeDef *usart,
+        uint32_t baud_rate, uint16_t word_length, uint16_t stop_bits, uint16_t parity, irq_handler receive_handler);
+bool usart_simple_init(USART_TypeDef *usart);
 void usart_send_byte(USART_TypeDef *usart, uint8_t byte);
 void usart_send_str(USART_TypeDef *usart, const char *str);
 bool usart_has_data(USART_TypeDef *usart);
@@ -71,6 +73,7 @@ void dma_wait_transfer(DMA_Channel_TypeDef *channel);
 
 /* Interrupt handlers. */
 bool exti_set_handler(uint32_t exti_line, irq_handler handler);
+bool usart_set_handler(USART_TypeDef *usart, irq_handler handler);
 
 /* Debug. */
 bool debug_init(USART_TypeDef *usart, GPIO_TypeDef *debug_led_gpio, uint16_t debug_led_pin);

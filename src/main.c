@@ -13,11 +13,18 @@
 #define TEST_SINGLE_ADC (1 << 3)
 #define TEST_DMA (1 << 4)
 #define TEST_ADC_DMA (1 << 5)
+#define TEST_USART (1 << 6)
 
 void exti_irq_handler(void)
 {
     if (GPIO_ReadInputDataBit(GPIOB, GPIO_Pin_9) == 0)
         TRACE("Trigger falling edge on PB9.\n");
+}
+
+void usart_receive_handler(void)
+{
+    /* FIXME: Instead of handling data in irq handler, it's better to push data to a buffer, and set a flag. */
+    putchar(USART_ReceiveData(USART1));
 }
 
 void test_exti(void)
@@ -102,6 +109,16 @@ void test_adc_dma(void)
     }
 }
 
+void test_usart(void)
+{
+    usart_init(USART1, 9600, USART_WordLength_8b, USART_StopBits_1, USART_Parity_No, usart_receive_handler);
+    while (1)
+    {
+        usart_send_str(USART1, "Hi!\n");
+        delay_ms(1000);
+    }
+}
+
 int main(void)
 {
     uint32_t test_case;
@@ -109,7 +126,7 @@ int main(void)
     NVIC_PriorityGroupConfig(NVIC_PriorityGroup_2);
     debug_init(USART1, DEBUG_LED_GPIO, DEBUG_LED_PIN);
 
-    test_case = TEST_EXTI | TEST_ADC_DMA;
+    test_case = TEST_EXTI | TEST_USART;
 
     if (test_case & TEST_EXTI)
         test_exti();
@@ -123,6 +140,8 @@ int main(void)
         test_dma();
     if (test_case & TEST_ADC_DMA)
         test_adc_dma();
+    if (test_case & TEST_USART)
+        test_usart();
 
     return 0; /* Should never be here. */
 }
