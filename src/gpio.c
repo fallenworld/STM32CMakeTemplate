@@ -105,6 +105,16 @@ bool gpio_pin_init(const struct gpio_pin *pin, GPIOMode_TypeDef mode)
     return gpio_init(pin->gpio, pin->pin, mode);
 }
 
+uint8_t gpio_pin_read(const struct gpio_pin *pin)
+{
+    return GPIO_ReadInputDataBit(pin->gpio, pin->pin);
+}
+
+void gpio_pin_write(const struct gpio_pin *pin, uint8_t bit)
+{
+    GPIO_WriteBit(pin->gpio, pin->pin, bit ? Bit_SET : Bit_RESET);
+}
+
 bool exti_init(GPIO_TypeDef *gpio, uint16_t pin, irq_handler handler,
         EXTITrigger_TypeDef trigger, uint8_t preemption_pri, uint8_t sub_pri)
 {

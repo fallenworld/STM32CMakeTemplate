@@ -26,9 +26,22 @@ struct gpio_pin
     uint16_t pin;
 };
 
+struct i2c_software
+{
+    struct gpio_pin scl, sda;
+};
+
+struct i2c_software_device
+{
+    struct i2c_software i2c;
+    uint8_t address;
+};
+
 /* GPIO. */
 bool gpio_init(GPIO_TypeDef *gpio, uint16_t pins, GPIOMode_TypeDef mode);
 bool gpio_pin_init(const struct gpio_pin *pin, GPIOMode_TypeDef mode);
+uint8_t gpio_pin_read(const struct gpio_pin *pin);
+void gpio_pin_write(const struct gpio_pin *pin, uint8_t bit);
 bool exti_init(GPIO_TypeDef *gpio, uint16_t pin, irq_handler handler,
         EXTITrigger_TypeDef trigger, uint8_t preemption_pri, uint8_t sub_pri);
 
@@ -70,6 +83,19 @@ bool dma_init(DMA_Channel_TypeDef *channel,
 bool dma_m2m_init(DMA_Channel_TypeDef *channel, void *src_addr, void *dst_addr, uint32_t data_size);
 void dma_start_transfer(DMA_Channel_TypeDef *channel, uint16_t data_count);
 void dma_wait_transfer(DMA_Channel_TypeDef *channel);
+
+/* I2C. */
+#define I2C_ACK  0
+#define I2C_NACK 1
+#define I2C_R(addr) (((addr) << 1) | 1)
+#define I2C_W(addr) (((addr) << 1) | 0)
+bool i2c_software_init(const struct i2c_software *i2c);
+void i2c_software_start(const struct i2c_software *i2c);
+void i2c_software_stop(const struct i2c_software *i2c);
+void i2c_software_send(const struct i2c_software *i2c, uint8_t data);
+uint8_t i2c_software_receive(const struct i2c_software *i2c);
+void i2c_software_send_ack(const struct i2c_software *i2c, uint8_t ack_bit);
+uint8_t i2c_software_receive_ack(const struct i2c_software *i2c);
 
 /* Interrupt handlers. */
 bool exti_set_handler(uint32_t exti_line, irq_handler handler);

@@ -1,5 +1,8 @@
 /*
  * STM32 USART helper functions.
+ *
+ * View the contents of the serial port on Linux:
+ * stty -F /dev/ttyACM0 raw 9600 cs8 -cstopb -parenb -crtscts -echo && cat /dev/ttyACM0
  */
 
 #include "stm32.h"

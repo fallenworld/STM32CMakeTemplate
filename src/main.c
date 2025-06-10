@@ -3,6 +3,7 @@
  */
 
 #include "stm32.h"
+#include "icm42688p.h"
 
 #define DEBUG_LED_GPIO GPIOA
 #define DEBUG_LED_PIN  GPIO_Pin_13
@@ -14,6 +15,9 @@
 #define TEST_DMA (1 << 4)
 #define TEST_ADC_DMA (1 << 5)
 #define TEST_USART (1 << 6)
+#define TEST_I2C_SOFTWARE (1 << 7)
+#define TEST_I2C_HARDWARE (1 << 8)
+
 
 void exti_irq_handler(void)
 {
@@ -119,6 +123,35 @@ void test_usart(void)
     }
 }
 
+void test_software_i2c(void)
+{
+    struct i2c_software_device icm42688;
+
+    icm42688.i2c.scl.gpio = GPIOB;
+    icm42688.i2c.scl.pin = GPIO_Pin_12;
+    icm42688.i2c.sda.gpio = GPIOB;
+    icm42688.i2c.sda.pin = GPIO_Pin_13;
+
+    icm42688p_init(&icm42688, 0);
+
+    while (1)
+    {
+        int16_t accel_x, accel_y, accel_z, gyro_x, gyro_y, gyro_z;
+
+        icm42688p_get_accel(&icm42688, &accel_x, &accel_y, &accel_z);
+        icm42688p_get_gero(&icm42688, &gyro_x, &gyro_y, &gyro_z);
+
+        printf("accel_x: %d, accel_y: %d, accel_z: %d.\n", accel_x, accel_y, accel_z);
+        printf("gyro_x: %d, gyro_y: %d, gyro_z: %d.\n", gyro_x, gyro_y, gyro_z);
+        //delay_ms(10);
+    }
+}
+
+void test_hardware_i2c(void)
+{
+
+}
+
 int main(void)
 {
     uint32_t test_case;
@@ -126,7 +159,7 @@ int main(void)
     NVIC_PriorityGroupConfig(NVIC_PriorityGroup_2);
     debug_init(USART1, DEBUG_LED_GPIO, DEBUG_LED_PIN);
 
-    test_case = TEST_EXTI | TEST_USART;
+    test_case = TEST_EXTI | TEST_I2C_SOFTWARE;
 
     if (test_case & TEST_EXTI)
         test_exti();
@@ -142,6 +175,10 @@ int main(void)
         test_adc_dma();
     if (test_case & TEST_USART)
         test_usart();
+    if (test_case & TEST_I2C_SOFTWARE)
+        test_software_i2c();
+    if (test_case & TEST_I2C_HARDWARE)
+        test_hardware_i2c();
 
     return 0; /* Should never be here. */
 }

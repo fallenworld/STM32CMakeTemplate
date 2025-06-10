@@ -51,6 +51,7 @@ endif ()
 # Sources and includes.
 include_directories(
         src
+        src/device
         ${STD_PERIPH_LIB}/Libraries/CMSIS/CM3/CoreSupport
         ${STD_PERIPH_LIB}/Libraries/CMSIS/CM3/DeviceSupport/ST/STM32F10x
         ${STD_PERIPH_LIB}/Libraries/STM32F10x_StdPeriph_Driver/inc
@@ -90,11 +91,13 @@ set(USER_SOURCES
         src/debug.c
         src/dma.c
         src/gpio.c
+        src/i2c.c
         src/irq_handlers.c
         src/main.c
         src/timer.c
         src/syscalls.c
-        src/usart.c)
+        src/usart.c
+        src/device/icm42688p.c)
 
 add_definitions(-DUSE_STDPERIPH_DRIVER
         -D${DEVICE_DEFINE}
