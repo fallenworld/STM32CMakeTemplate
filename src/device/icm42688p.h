@@ -127,14 +127,14 @@
 #define ICM42688P_I2C_ADDRESS 0x68
 
 /* Functions. */
-bool icm42688p_init(struct i2c_software_device *device, uint8_t ad0);
-bool icm42688p_read(const struct i2c_software_device *device, uint8_t reg_addr, uint8_t *data, uint32_t size);
-bool icm42688p_write(const struct i2c_software_device *device, uint8_t reg_addr, uint8_t *data, uint32_t size);
-bool icm42688p_read_byte(const struct i2c_software_device *device, uint8_t reg_addr, uint8_t *byte);
-bool icm42688p_write_byte(const struct i2c_software_device *device, uint8_t reg_addr, uint8_t byte);
-void icm42688p_get_accel(const struct i2c_software_device *device,
+bool icm42688p_init(struct i2c_device *device, uint8_t ad0, bool software_i2c);
+bool icm42688p_read(const struct i2c_device *device, uint8_t reg_addr, uint8_t *data, uint32_t size);
+bool icm42688p_write(const struct i2c_device *device, uint8_t reg_addr, uint8_t *data, uint32_t size);
+bool icm42688p_read_byte(const struct i2c_device *device, uint8_t reg_addr, uint8_t *byte);
+bool icm42688p_write_byte(const struct i2c_device *device, uint8_t reg_addr, uint8_t byte);
+void icm42688p_get_accel(const struct i2c_device *device,
         int16_t *accel_x, int16_t *accel_y, int16_t *accel_z);
-void icm42688p_get_gero(const struct i2c_software_device *device,
+void icm42688p_get_gero(const struct i2c_device *device,
         int16_t *gyro_x, int16_t *gyro_y, int16_t *gyro_z);
 
 #endif /* __ICM_42688_P_H__ */

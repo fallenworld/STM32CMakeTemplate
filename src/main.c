@@ -125,31 +125,45 @@ void test_usart(void)
 
 void test_software_i2c(void)
 {
-    struct i2c_software_device icm42688;
+    struct i2c_device device;
 
-    icm42688.i2c.scl.gpio = GPIOB;
-    icm42688.i2c.scl.pin = GPIO_Pin_12;
-    icm42688.i2c.sda.gpio = GPIOB;
-    icm42688.i2c.sda.pin = GPIO_Pin_13;
-
-    icm42688p_init(&icm42688, 0);
+    device.i2c.software.scl.gpio = GPIOB;
+    device.i2c.software.scl.pin = GPIO_Pin_10;
+    device.i2c.software.sda.gpio = GPIOB;
+    device.i2c.software.sda.pin = GPIO_Pin_11;
+    icm42688p_init(&device, 0, true);
 
     while (1)
     {
         int16_t accel_x, accel_y, accel_z, gyro_x, gyro_y, gyro_z;
 
-        icm42688p_get_accel(&icm42688, &accel_x, &accel_y, &accel_z);
-        icm42688p_get_gero(&icm42688, &gyro_x, &gyro_y, &gyro_z);
+        icm42688p_get_accel(&device, &accel_x, &accel_y, &accel_z);
+        icm42688p_get_gero(&device, &gyro_x, &gyro_y, &gyro_z);
 
         printf("accel_x: %d, accel_y: %d, accel_z: %d.\n", accel_x, accel_y, accel_z);
         printf("gyro_x: %d, gyro_y: %d, gyro_z: %d.\n", gyro_x, gyro_y, gyro_z);
-        //delay_ms(10);
+        delay_ms(100);
     }
 }
 
 void test_hardware_i2c(void)
 {
+    struct i2c_device device;
 
+    device.i2c.hardware = I2C2;
+    icm42688p_init(&device, 0, false);
+
+    while (1)
+    {
+        int16_t accel_x, accel_y, accel_z, gyro_x, gyro_y, gyro_z;
+
+        icm42688p_get_accel(&device, &accel_x, &accel_y, &accel_z);
+        icm42688p_get_gero(&device, &gyro_x, &gyro_y, &gyro_z);
+
+        printf("accel_x: %d, accel_y: %d, accel_z: %d.\n", accel_x, accel_y, accel_z);
+        printf("gyro_x: %d, gyro_y: %d, gyro_z: %d.\n", gyro_x, gyro_y, gyro_z);
+        delay_ms(100);
+    }
 }
 
 int main(void)
@@ -159,7 +173,7 @@ int main(void)
     NVIC_PriorityGroupConfig(NVIC_PriorityGroup_2);
     debug_init(USART1, DEBUG_LED_GPIO, DEBUG_LED_PIN);
 
-    test_case = TEST_EXTI | TEST_I2C_SOFTWARE;
+    test_case = TEST_EXTI | TEST_I2C_HARDWARE;
 
     if (test_case & TEST_EXTI)
         test_exti();

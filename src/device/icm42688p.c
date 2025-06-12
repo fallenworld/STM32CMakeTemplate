@@ -5,21 +5,22 @@
 
 #include "icm42688p.h"
 
-static bool icm42688p_config_accel(struct i2c_software_device *device, uint8_t odr, uint8_t fs)
+static bool icm42688p_config_accel(struct i2c_device *device, uint8_t odr, uint8_t fs)
 {
     return icm42688p_write_byte(device, ICM42688P_REG_ACCEL_CONFIG0, (fs << 5) | odr);
 }
 
-static bool icm42688p_config_gyro(struct i2c_software_device *device, uint8_t odr, uint8_t fs)
+static bool icm42688p_config_gyro(struct i2c_device *device, uint8_t odr, uint8_t fs)
 {
     return icm42688p_write_byte(device, ICM42688P_REG_GYRO_CONFIG0, (fs << 5) | odr);
 }
 
-bool icm42688p_init(struct i2c_software_device *device, uint8_t ad0)
+bool icm42688p_init(struct i2c_device *device, uint8_t ad0, bool software_i2c)
 {
     uint8_t id = 0;
 
-    if (!i2c_software_init(&device->i2c))
+    if ((software_i2c && !i2c_software_init(&device->i2c))
+            || !i2c_hardware_init(&device->i2c))
         return false;
 
     device->address = ICM42688P_I2C_ADDRESS | ad0;
@@ -66,28 +67,26 @@ bool icm42688p_init(struct i2c_software_device *device, uint8_t ad0)
     return true;
 }
 
-bool icm42688p_write(const struct i2c_software_device *device,
+bool icm42688p_write(const struct i2c_device *device,
         uint8_t reg_addr, uint8_t *data, uint32_t size)
 {
-    const struct i2c_software *i2c = &device->i2c;
+    const struct i2c *i2c = &device->i2c;
     uint32_t i;
 
-    i2c_software_start(i2c);
+    i2c_start(i2c);
 
     /* Send device address. */
-    i2c_software_send(i2c, I2C_W(device->address));
-    if (i2c_software_receive_ack(i2c) != I2C_ACK)
+    if (!i2c_send_address(i2c, device->address, I2C_W))
     {
-        i2c_software_stop(i2c);
+        i2c_stop(i2c);
         TRACE("Failed to send device address.\n");
         return false;
     }
 
     /* Send register address. */
-    i2c_software_send(i2c, reg_addr);
-    if (i2c_software_receive_ack(i2c) != I2C_ACK)
+    if (!i2c_send(i2c, reg_addr))
     {
-        i2c_software_stop(i2c);
+        i2c_stop(i2c);
         TRACE("Failed to send register address.\n");
         return false;
     }
@@ -95,82 +94,73 @@ bool icm42688p_write(const struct i2c_software_device *device,
     /* Send data. */
     for (i = 0; i < size; ++i)
     {
-        i2c_software_send(i2c, data[i]);
-        if (i2c_software_receive_ack(i2c) != I2C_ACK)
+        if (!i2c_send(i2c, data[i]))
         {
-            i2c_software_stop(i2c);
+            i2c_stop(i2c);
             TRACE("Failed to send data[%zu].\n", i);
             return false;
         }
     }
 
-    i2c_software_stop(i2c);
+    i2c_stop(i2c);
 
     TRACE("Wrote %u bytes to %#x, device %#x.\n", size, reg_addr, device->address);
     return true;
 }
 
-bool icm42688p_read(const struct i2c_software_device *device,
+bool icm42688p_read(const struct i2c_device *device,
         uint8_t reg_addr, uint8_t *data, uint32_t size)
 {
-    const struct i2c_software *i2c = &device->i2c;
+    const struct i2c *i2c = &device->i2c;
     uint32_t i;
 
-    i2c_software_start(i2c);
+    i2c_start(i2c);
 
     /* Send device address for write. */
-    i2c_software_send(i2c, I2C_W(device->address));
-    if (i2c_software_receive_ack(i2c) != I2C_ACK)
+    if (!i2c_send_address(i2c, device->address, I2C_W))
     {
-        i2c_software_stop(i2c);
+        i2c_stop(i2c);
         TRACE("Failed to send device address for write.\n");
         return false;
     }
 
     /* Send register address. */
-    i2c_software_send(i2c, reg_addr);
-    if (i2c_software_receive_ack(i2c) != I2C_ACK)
+    if (!i2c_send(i2c, reg_addr))
     {
-        i2c_software_stop(i2c);
+        i2c_stop(i2c);
         TRACE("Failed to send register address.\n");
         return false;
     }
 
-    i2c_software_start(i2c);
+    i2c_start(i2c);
 
     /* Send device address for read. */
-    i2c_software_send(i2c, I2C_R(device->address));
-    if (i2c_software_receive_ack(i2c) != I2C_ACK)
+    if (!i2c_send_address(i2c, device->address, I2C_R))
     {
-        i2c_software_stop(i2c);
+        i2c_stop(i2c);
         TRACE("Failed to send device address for read.\n");
         return false;
     }
 
     /* Read data. */
     for (i = 0; i < size; ++i)
-    {
-        data[i] = i2c_software_receive(i2c);
-        i2c_software_send_ack(i2c, i == size - 1 ? I2C_NACK : I2C_ACK);
-    }
-
-    i2c_software_stop(i2c);
+        data[i] = i2c_receive(i2c, i == size - 1);
 
     /* TRACE("Read %u bytes from %#x, device %#x.\n", size, reg_addr, device->address); */
     return true;
 }
 
-bool icm42688p_write_byte(const struct i2c_software_device *device, uint8_t reg_addr, uint8_t byte)
+bool icm42688p_write_byte(const struct i2c_device *device, uint8_t reg_addr, uint8_t byte)
 {
     return icm42688p_write(device, reg_addr, &byte, 1);
 }
 
-bool icm42688p_read_byte(const struct i2c_software_device *device, uint8_t reg_addr, uint8_t *byte)
+bool icm42688p_read_byte(const struct i2c_device *device, uint8_t reg_addr, uint8_t *byte)
 {
     return icm42688p_read(device, reg_addr, byte, 1);
 }
 
-void icm42688p_get_accel(const struct i2c_software_device *device,
+void icm42688p_get_accel(const struct i2c_device *device,
         int16_t *accel_x, int16_t *accel_y, int16_t *accel_z)
 {
     if (accel_x)
@@ -192,7 +182,7 @@ void icm42688p_get_accel(const struct i2c_software_device *device,
     }
 }
 
-void icm42688p_get_gero(const struct i2c_software_device *device,
+void icm42688p_get_gero(const struct i2c_device *device,
         int16_t *gyro_x, int16_t *gyro_y, int16_t *gyro_z)
 {
     if (gyro_x)

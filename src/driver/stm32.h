@@ -20,6 +20,8 @@
 
 typedef void (*irq_handler)(void);
 
+struct i2c;
+
 struct gpio_pin
 {
     GPIO_TypeDef *gpio;
@@ -31,9 +33,28 @@ struct i2c_software
     struct gpio_pin scl, sda;
 };
 
-struct i2c_software_device
+struct i2c_ops
 {
-    struct i2c_software i2c;
+    void (*i2c_start)(const struct i2c *i2c);
+    void (*i2c_stop)(const struct i2c *i2c);
+    bool (*i2c_send)(const struct i2c *i2c, uint8_t data);
+    uint8_t (*i2c_receive)(const struct i2c *i2c, bool stop);
+    bool (*i2c_send_address)(const struct i2c *i2c, uint8_t address, uint8_t rw);
+};
+
+struct i2c
+{
+    union
+    {
+        struct i2c_software software;
+        I2C_TypeDef *hardware;
+    };
+    const struct i2c_ops *ops;
+};
+
+struct i2c_device
+{
+    struct i2c i2c;
     uint8_t address;
 };
 
@@ -87,15 +108,18 @@ void dma_wait_transfer(DMA_Channel_TypeDef *channel);
 /* I2C. */
 #define I2C_ACK  0
 #define I2C_NACK 1
-#define I2C_R(addr) (((addr) << 1) | 1)
-#define I2C_W(addr) (((addr) << 1) | 0)
-bool i2c_software_init(const struct i2c_software *i2c);
-void i2c_software_start(const struct i2c_software *i2c);
-void i2c_software_stop(const struct i2c_software *i2c);
-void i2c_software_send(const struct i2c_software *i2c, uint8_t data);
-uint8_t i2c_software_receive(const struct i2c_software *i2c);
-void i2c_software_send_ack(const struct i2c_software *i2c, uint8_t ack_bit);
-uint8_t i2c_software_receive_ack(const struct i2c_software *i2c);
+
+#define I2C_W I2C_Direction_Transmitter
+#define I2C_R I2C_Direction_Receiver
+
+#define i2c_start(i2c)                     ((i2c)->ops->i2c_start(i2c))
+#define i2c_stop(i2c)                      ((i2c)->ops->i2c_stop(i2c))
+#define i2c_send(i2c, data)                ((i2c)->ops->i2c_send(i2c, data))
+#define i2c_receive(i2c, stop)             ((i2c)->ops->i2c_receive(i2c, stop))
+#define i2c_send_address(i2c, address, rw) ((i2c)->ops->i2c_send_address(i2c, address, rw))
+
+bool i2c_software_init(struct i2c *i2c);
+bool i2c_hardware_init(struct i2c *i2c);
 
 /* Interrupt handlers. */
 bool exti_set_handler(uint32_t exti_line, irq_handler handler);
