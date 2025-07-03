@@ -5,8 +5,6 @@
 #ifndef __ICM_42688_P_H__
 #define __ICM_42688_P_H__
 
-#include <stdbool.h>
-#include <stdint.h>
 #include "stm32.h"
 
 /* Registers. */

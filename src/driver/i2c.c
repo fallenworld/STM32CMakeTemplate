@@ -141,11 +141,9 @@ bool i2c_software_init(struct i2c *i2c)
 
 static bool i2c_hardware_wait_event(const struct i2c *i2c, uint32_t event, uint32_t timeout_count)
 {
-    uint32_t timeout = timeout_count;
-
     while (I2C_CheckEvent(i2c->hardware, event) != SUCCESS)
     {
-        if (!timeout--)
+        if (!timeout_count--)
         {
             TRACE("Timeout waiting for I2C event %#x.\n", event);
             return false;

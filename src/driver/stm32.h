@@ -8,6 +8,7 @@
 #include <assert.h>
 #include <stdarg.h>
 #include <stdbool.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <string.h>
 #include "stm32f10x.h"
@@ -56,6 +57,11 @@ struct i2c_device
 {
     struct i2c i2c;
     uint8_t address;
+};
+
+struct device
+{
+    uint8_t type;
 };
 
 /* GPIO. */
@@ -120,6 +126,28 @@ void dma_wait_transfer(DMA_Channel_TypeDef *channel);
 
 bool i2c_software_init(struct i2c *i2c);
 bool i2c_hardware_init(struct i2c *i2c);
+
+/* SPI. */
+#define SPI_SOFTWARE 0
+#define SPI_HARDWARE 1
+#define SPI_DUMMY_BYTE 0xff
+
+struct spi_software
+{
+    struct device device;
+    struct gpio_pin ss, sck, miso, mosi;
+};
+
+struct spi_hardware
+{
+    struct device device;
+    SPI_TypeDef *hardware;
+};
+
+bool spi_init(struct device *spi);
+void spi_start(struct device *spi);
+void spi_stop(struct device *spi);
+uint8_t spi_read_write(struct device *spi, uint8_t data);
 
 /* Interrupt handlers. */
 bool exti_set_handler(uint32_t exti_line, irq_handler handler);

@@ -88,7 +88,7 @@ set(LIBRARY_SOURCES
         ${STD_PERIPH_LIB}/Project/STM32F10x_StdPeriph_Template/stm32f10x_it.c)
 
 set(USER_SOURCES
-        src/device/icm42688p.c
+        # Drivers.
         src/driver/adc.c
         src/driver/debug.c
         src/driver/dma.c
@@ -96,8 +96,15 @@ set(USER_SOURCES
         src/driver/i2c.c
         src/driver/irq_handlers.c
         src/driver/timer.c
+        src/driver/spi.c
         src/driver/syscalls.c
         src/driver/usart.c
+
+        # Devices.
+        src/device/icm42688p.c
+        src/device/w25qxx.c
+
+        # User program.
         src/main.c)
 
 add_definitions(-DUSE_STDPERIPH_DRIVER
@@ -107,7 +114,7 @@ add_definitions(-DUSE_STDPERIPH_DRIVER
 # Compile options.
 add_compile_options(-mcpu=cortex-m3 -mthumb -mthumb-interwork)
 add_compile_options(-ffunction-sections -fdata-sections -fno-common -fmessage-length=0)
-add_compile_options(-Wall -Wextra -Werror -Wpedantic)
+add_compile_options(-Wall -Wextra -Werror)
 
 # Enable assembler files preprocessing.
 add_compile_options($<$<COMPILE_LANGUAGE:ASM>:-x$<SEMICOLON>assembler-with-cpp>)

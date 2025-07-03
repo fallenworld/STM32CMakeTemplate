@@ -4,6 +4,7 @@
 
 #include "stm32.h"
 #include "icm42688p.h"
+#include "w25qxx.h"
 
 #define DEBUG_LED_GPIO GPIOA
 #define DEBUG_LED_PIN  GPIO_Pin_13
@@ -17,6 +18,8 @@
 #define TEST_USART (1 << 6)
 #define TEST_I2C_SOFTWARE (1 << 7)
 #define TEST_I2C_HARDWARE (1 << 8)
+#define TEST_SPI_SOFTWARE (1 << 9)
+#define TEST_SPI_HARDWARE (1 << 10)
 
 
 void exti_irq_handler(void)
@@ -166,6 +169,36 @@ void test_hardware_i2c(void)
     }
 }
 
+void test_software_spi(void)
+{
+    struct spi_software spi;
+    uint32_t addr = 0x1000;
+    char buffer[32];
+
+    spi.device.type = SPI_SOFTWARE;
+    spi.ss.gpio = GPIOA;
+    spi.ss.pin = GPIO_Pin_4;
+    spi.sck.gpio = GPIOA;
+    spi.sck.pin = GPIO_Pin_5;
+    spi.miso.gpio = GPIOA;
+    spi.miso.pin = GPIO_Pin_6;
+    spi.mosi.gpio = GPIOA;
+    spi.mosi.pin = GPIO_Pin_7;
+
+    if (!w25qxx_init(&spi.device))
+    {
+        TRACE("Failed to init w25qxx.\n");
+        return;
+    }
+
+    w25qxx_erase(&spi.device, W25QXX_INSTR_SECTOR_ERASE_4KB, addr);
+    w25qxx_write(&spi.device, addr, "Hello, world!", 14);
+    w25qxx_read(&spi.device, addr, buffer, sizeof(buffer));
+    TRACE("Read from w25qxx: \"%s\".\n", buffer);
+
+    while (1) {}
+}
+
 int main(void)
 {
     uint32_t test_case;
@@ -173,7 +206,7 @@ int main(void)
     NVIC_PriorityGroupConfig(NVIC_PriorityGroup_2);
     debug_init(USART1, DEBUG_LED_GPIO, DEBUG_LED_PIN);
 
-    test_case = TEST_EXTI | TEST_I2C_HARDWARE;
+    test_case = TEST_SPI_SOFTWARE;
 
     if (test_case & TEST_EXTI)
         test_exti();
@@ -193,6 +226,8 @@ int main(void)
         test_software_i2c();
     if (test_case & TEST_I2C_HARDWARE)
         test_hardware_i2c();
+    if (test_case & TEST_SPI_SOFTWARE)
+        test_software_spi();
 
     return 0; /* Should never be here. */
 }
