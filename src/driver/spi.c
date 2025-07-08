@@ -4,6 +4,8 @@
 
 #include "stm32.h"
 
+#define WAIT_TIMEOUT 10000
+
 #define DEF_SPI_OP(op, spi, ...)                                                 \
     switch (spi->type)                                                           \
     {                                                                            \
@@ -14,6 +16,28 @@
         default:                                                                 \
             TRACE("Invalid type %#x.\n", spi->type);                             \
     }
+
+static struct spi_hardware_info
+{
+    SPI_TypeDef *spi;
+    uint32_t periph;
+    struct gpio_pin nss, sck, miso, mosi;
+} spi_hardware_list[] =
+{
+    {SPI1, RCC_APB2Periph_SPI1, {GPIOA, GPIO_Pin_4},  {GPIOA, GPIO_Pin_5},  {GPIOA, GPIO_Pin_6},  {GPIOA, GPIO_Pin_7}},
+    {SPI2, RCC_APB1Periph_SPI2, {GPIOB, GPIO_Pin_12}, {GPIOB, GPIO_Pin_13}, {GPIOB, GPIO_Pin_14}, {GPIOB, GPIO_Pin_15}},
+};
+
+static const struct spi_hardware_info *spi_hardware_info_find(const SPI_TypeDef *spi)
+{
+    unsigned int i;
+    for (i = 0; i < ARRAY_SIZE(spi_hardware_list); ++i)
+    {
+        if (spi_hardware_list[i].spi == spi)
+            return &spi_hardware_list[i];
+    }
+    return NULL;
+}
 
 static bool spi_software_init(const struct spi_software *spi)
 {
@@ -59,25 +83,82 @@ static uint8_t spi_software_read_write(const struct spi_software *spi, uint8_t d
 
 static bool spi_hardware_init(const struct spi_hardware *spi)
 {
-    (void)spi;
-    return false;
+    const struct spi_hardware_info *info = spi_hardware_info_find(spi->hardware);
+    SPI_InitTypeDef init_def;
+
+    if (!info)
+    {
+        TRACE("Invalid hardware SPI %p.\n", spi);
+        return false;
+    }
+
+    if (!gpio_pin_init(&info->nss, GPIO_Mode_Out_PP)
+            || !gpio_pin_init(&info->sck, GPIO_Mode_AF_PP)
+            || !gpio_pin_init(&info->miso, GPIO_Mode_IPU)
+            || !gpio_pin_init(&info->mosi, GPIO_Mode_AF_PP))
+        return false;
+
+    if (info->periph == RCC_APB2Periph_SPI1)
+        abp2_periph_enable(info->periph);
+    else
+        abp1_periph_enable(info->periph);
+
+    SPI_StructInit(&init_def);
+    init_def.SPI_Mode = SPI_Mode_Master;
+    init_def.SPI_NSS = SPI_NSS_Soft;
+    init_def.SPI_BaudRatePrescaler = SPI_BaudRatePrescaler_128;
+    SPI_Init(spi->hardware, &init_def);
+
+    SPI_Cmd(spi->hardware, ENABLE);
+    gpio_pin_write(&info->nss, 1);
+    TRACE("Inited hardware SPI %p.\n", spi);
+
+    return true;
 }
 
 static void spi_hardware_start(const struct spi_hardware *spi)
 {
-    (void)spi;
+    const struct spi_hardware_info *info = spi_hardware_info_find(spi->hardware);
+    if (info)
+        gpio_pin_write(&info->nss, 0);
+    else
+        TRACE("Invalid hardware SPI %p.\n", spi);
 }
 
 static void spi_hardware_stop(const struct spi_hardware *spi)
 {
-    (void)spi;
+    const struct spi_hardware_info *info = spi_hardware_info_find(spi->hardware);
+    if (info)
+        gpio_pin_write(&info->nss, 1);
+    else
+        TRACE("Invalid hardware SPI %p.\n", spi);
 }
 
 static uint8_t spi_hardware_read_write(const struct spi_hardware *spi, uint8_t data)
 {
-    (void)spi;
-    (void)data;
-    return 0;
+    uint32_t timeout = WAIT_TIMEOUT;
+
+    while (SPI_I2S_GetFlagStatus(spi->hardware, SPI_I2S_FLAG_TXE) != SET)
+    {
+        if (!timeout--)
+        {
+            TRACE("Timeout waiting for SPI TXE.\n");
+            return 0;
+        }
+    }
+
+    SPI_I2S_SendData(spi->hardware, data);
+
+    while (SPI_I2S_GetFlagStatus(spi->hardware, SPI_I2S_FLAG_RXNE) != SET)
+    {
+        if (!timeout--)
+        {
+            TRACE("Timeout waiting for SPI RXNE.\n");
+            return 0;
+        }
+    }
+
+    return SPI_I2S_ReceiveData(spi->hardware);
 }
 
 bool spi_init(struct device *spi)

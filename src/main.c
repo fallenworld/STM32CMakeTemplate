@@ -169,7 +169,7 @@ void test_hardware_i2c(void)
     }
 }
 
-void test_software_spi(void)
+void test_spi_software(void)
 {
     struct spi_software spi;
     uint32_t addr = 0x1000;
@@ -199,6 +199,29 @@ void test_software_spi(void)
     while (1) {}
 }
 
+void test_spi_hardware(void)
+{
+    const char *data = "Im your father.";
+    struct spi_hardware spi;
+    uint32_t addr = 0x1000;
+    char buffer[32];
+
+    spi.device.type = SPI_HARDWARE;
+    spi.hardware = SPI1;
+
+    if (!w25qxx_init(&spi.device))
+    {
+        TRACE("Failed to init w25qxx.\n");
+        return;
+    }
+
+    w25qxx_erase(&spi.device, W25QXX_INSTR_SECTOR_ERASE_4KB, addr);
+    w25qxx_write(&spi.device, addr, data, strlen(data) + 1);
+    w25qxx_read(&spi.device, addr, buffer, sizeof(buffer));
+    TRACE("Read from w25qxx: \"%s\".\n", buffer);
+
+    while (1) {}
+}
 int main(void)
 {
     uint32_t test_case;
@@ -206,7 +229,7 @@ int main(void)
     NVIC_PriorityGroupConfig(NVIC_PriorityGroup_2);
     debug_init(USART1, DEBUG_LED_GPIO, DEBUG_LED_PIN);
 
-    test_case = TEST_SPI_SOFTWARE;
+    test_case = TEST_SPI_HARDWARE;
 
     if (test_case & TEST_EXTI)
         test_exti();
@@ -227,7 +250,9 @@ int main(void)
     if (test_case & TEST_I2C_HARDWARE)
         test_hardware_i2c();
     if (test_case & TEST_SPI_SOFTWARE)
-        test_software_spi();
+        test_spi_software();
+    if (test_case & TEST_SPI_HARDWARE)
+        test_spi_hardware();
 
     return 0; /* Should never be here. */
 }
