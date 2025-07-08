@@ -1,5 +1,5 @@
 /*
- * STM32 I2C helper functions.
+ * I2C driver functions.
  */
 
 #include "stm32.h"
@@ -224,7 +224,7 @@ bool i2c_hardware_init(struct i2c *i2c)
             || !gpio_pin_init(&info->sda, GPIO_Mode_AF_OD))
         return false;
 
-    abp1_periph_enable(info->periph);
+    rcc_enable(BUS_APB1, info->periph);
 
     i2c->ops = &i2c_hardware_ops;
 

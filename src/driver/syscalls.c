@@ -1,5 +1,5 @@
 /*
- * C system call functions.
+ * C system calls.
  */
 
 #include <errno.h>

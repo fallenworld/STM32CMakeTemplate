@@ -20,6 +20,8 @@
 #define TEST_I2C_HARDWARE (1 << 8)
 #define TEST_SPI_SOFTWARE (1 << 9)
 #define TEST_SPI_HARDWARE (1 << 10)
+#define TEST_BKP (1 << 11)
+#define TEST_RTC (1 << 12)
 
 
 void exti_irq_handler(void)
@@ -222,6 +224,27 @@ void test_spi_hardware(void)
 
     while (1) {}
 }
+
+void test_bkp()
+{
+    uint16_t data;
+    bkp_init();
+    //bkp_write(BKP_DR1, 0x1234);
+    data = BKP_ReadBackupRegister(BKP_DR1);
+    printf("BKP_DR1: %#x.\n", data);
+    while (1) {}
+}
+
+void test_rtc()
+{
+    rtc_init(0);
+    while (1)
+    {
+        printf("RTC counter: %lu.\n", RTC_GetCounter());
+        delay_ms(200);
+    }
+}
+
 int main(void)
 {
     uint32_t test_case;
@@ -229,7 +252,7 @@ int main(void)
     NVIC_PriorityGroupConfig(NVIC_PriorityGroup_2);
     debug_init(USART1, DEBUG_LED_GPIO, DEBUG_LED_PIN);
 
-    test_case = TEST_SPI_HARDWARE;
+    test_case = TEST_RTC;
 
     if (test_case & TEST_EXTI)
         test_exti();
@@ -253,6 +276,10 @@ int main(void)
         test_spi_software();
     if (test_case & TEST_SPI_HARDWARE)
         test_spi_hardware();
+    if (test_case & TEST_BKP)
+        test_bkp();
+    if (test_case & TEST_RTC)
+        test_rtc();
 
     return 0; /* Should never be here. */
 }

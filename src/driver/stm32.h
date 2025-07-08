@@ -1,5 +1,5 @@
 /*
- * STM32 helper functions header.
+ * STM32 header.
  */
 
 #ifndef __STM32_H__
@@ -18,6 +18,10 @@
 #endif
 
 #define ARRAY_SIZE(array) (sizeof(array) / sizeof(array[0]))
+
+#define BUS_AHB  0
+#define BUS_APB1 1
+#define BUS_APB2 2
 
 typedef void (*irq_handler)(void);
 
@@ -83,7 +87,7 @@ void usart_send_str(USART_TypeDef *usart, const char *str);
 bool usart_has_data(USART_TypeDef *usart);
 uint8_t usart_wait_byte(USART_TypeDef *usart);
 
-/* Timer. */
+/* TIM. */
 bool timer_update_init(TIM_TypeDef *timer, bool internal_clock, uint32_t prescaler_factor, uint32_t period_count);
 bool timer_pwm_init(TIM_TypeDef *timer, uint16_t channel, uint32_t frequency, uint32_t period_count);
 bool timer_pwm_set_pulse(TIM_TypeDef *timer, uint16_t channel, uint16_t pulse);
@@ -149,6 +153,10 @@ void spi_start(struct device *spi);
 void spi_stop(struct device *spi);
 uint8_t spi_read_write(struct device *spi, uint8_t data);
 
+/* RTC & BKP. */
+void bkp_init(void);
+void rtc_init(uint32_t initial_count);
+
 /* Interrupt handlers. */
 bool exti_set_handler(uint32_t exti_line, irq_handler handler);
 bool usart_set_handler(USART_TypeDef *usart, irq_handler handler);
@@ -184,37 +192,25 @@ static inline uint32_t count_trailing_zeros(uint32_t x)
 }
 #endif
 
-static inline bool is_abp1_periph_enabled(uint32_t periph)
+static inline void rcc_enable(uint32_t type, uint32_t periph)
 {
-    return !!(RCC->APB1ENR & periph);
-}
-
-static inline bool is_abp2_periph_enabled(uint32_t periph)
-{
-    return !!(RCC->APB2ENR & periph);
-}
-
-static inline bool is_ahb_periph_enabled(uint32_t periph)
-{
-    return !!(RCC->AHBENR & periph);
-}
-
-static inline void abp1_periph_enable(uint32_t periph)
-{
-    if (!is_abp1_periph_enabled(periph))
-        RCC_APB1PeriphClockCmd(periph, ENABLE);
-}
-
-static inline void abp2_periph_enable(uint32_t periph)
-{
-    if (!is_abp2_periph_enabled(periph))
-        RCC_APB2PeriphClockCmd(periph, ENABLE);
-}
-
-static inline void ahb_periph_enable(uint32_t periph)
-{
-    if (!is_ahb_periph_enabled(periph))
-        RCC_AHBPeriphClockCmd(periph, ENABLE);
+    switch (type)
+    {
+        case BUS_AHB:
+            if (!(RCC->AHBENR & periph))
+                RCC_AHBPeriphClockCmd(periph, ENABLE);
+            return;
+        case BUS_APB1:
+            if (!(RCC->APB1ENR & periph))
+                RCC_APB1PeriphClockCmd(periph, ENABLE);
+            return;
+        case BUS_APB2:
+            if (!(RCC->APB2ENR & periph))
+                RCC_APB2PeriphClockCmd(periph, ENABLE);
+            return;
+        default:
+            TRACE("Invalid RCC type: %u.\n", type);
+    }
 }
 
 #endif /* __STM32_H__ */

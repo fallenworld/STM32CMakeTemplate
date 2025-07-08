@@ -1,5 +1,5 @@
 /*
- * Direct memory access functions.
+ * DMA driver functions.
  */
 
 #include "stm32.h"
@@ -14,7 +14,7 @@ bool dma_init(DMA_Channel_TypeDef *channel,
 {
     DMA_InitTypeDef dma_init_type_def;
 
-    ahb_periph_enable(RCC_AHBPeriph_DMA1);
+    rcc_enable(BUS_AHB, RCC_AHBPeriph_DMA1);
 
     DMA_StructInit(&dma_init_type_def);
     dma_init_type_def.DMA_PeripheralBaseAddr = (uint32_t)src_addr;

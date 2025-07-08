@@ -1,8 +1,10 @@
 /*
- * STM32 GPIO helper functions.
+ * GPIO driver functions.
  */
 
 #include "stm32.h"
+
+#define GPIO_PERIPH(gpio) (RCC_APB2Periph_GPIOA << gpio_get_index(gpio))
 
 static const GPIO_TypeDef *gpio_list[] = {GPIOA, GPIOB, GPIOC, GPIOD, GPIOE, GPIOF, GPIOG};
 
@@ -32,11 +34,6 @@ static const char *gpio_name(GPIO_TypeDef *gpio)
 static uint32_t gpio_port_source(GPIO_TypeDef *gpio)
 {
     return gpio_get_index(gpio) - GPIO_PortSourceGPIOA;
-}
-
-static uint32_t gpio_periph(GPIO_TypeDef *gpio)
-{
-    return RCC_APB2Periph_GPIOA << gpio_get_index(gpio);
 }
 
 static uint8_t pin_get_index(uint16_t pin)
@@ -88,7 +85,7 @@ bool gpio_init(GPIO_TypeDef *gpio, uint16_t pins, GPIOMode_TypeDef mode)
         return false;
     }
 
-    abp2_periph_enable(gpio_periph(gpio));
+    rcc_enable(BUS_APB2, GPIO_PERIPH(gpio));
 
     gpio_init_def.GPIO_Mode = mode;
     gpio_init_def.GPIO_Pin = pins;
@@ -140,7 +137,7 @@ bool exti_init(GPIO_TypeDef *gpio, uint16_t pin, irq_handler handler,
         return false;
     }
 
-    abp2_periph_enable(RCC_APB2Periph_AFIO);
+    rcc_enable(BUS_APB2, RCC_APB2Periph_AFIO);
 
     GPIO_EXTILineConfig(gpio_port_source(gpio), pin_source(pin));
 

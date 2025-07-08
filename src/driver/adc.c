@@ -1,5 +1,5 @@
 /*
- * Analog-to-digital converter functions.
+ * ADC driver functions.
  */
 
 #include "stm32.h"
@@ -90,7 +90,7 @@ static void adc_init(const struct adc_info *adc_info, uint8_t channel_count, boo
 {
     ADC_InitTypeDef adc_init_type_def;
 
-    abp2_periph_enable(adc_info->periph);
+    rcc_enable(BUS_APB2, adc_info->periph);
     RCC_ADCCLKConfig(RCC_PCLK2_Div6);
 
     ADC_StructInit(&adc_init_type_def);

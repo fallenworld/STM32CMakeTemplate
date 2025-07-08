@@ -1,5 +1,5 @@
 /*
- * STM32 debugging helper functions.
+ * Debug helper functions.
  */
 
 #include "stm32.h"

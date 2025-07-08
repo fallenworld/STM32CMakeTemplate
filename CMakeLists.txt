@@ -95,7 +95,8 @@ set(USER_SOURCES
         src/driver/gpio.c
         src/driver/i2c.c
         src/driver/irq_handlers.c
-        src/driver/timer.c
+        src/driver/tim.c
+        src/driver/rtc.c
         src/driver/spi.c
         src/driver/syscalls.c
         src/driver/usart.c

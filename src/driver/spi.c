@@ -1,5 +1,5 @@
 /*
- * STM32 SPI driver functions.
+ * SPI driver functions.
  */
 
 #include "stm32.h"
@@ -20,12 +20,13 @@
 static struct spi_hardware_info
 {
     SPI_TypeDef *spi;
+    uint32_t bus;
     uint32_t periph;
     struct gpio_pin nss, sck, miso, mosi;
 } spi_hardware_list[] =
 {
-    {SPI1, RCC_APB2Periph_SPI1, {GPIOA, GPIO_Pin_4},  {GPIOA, GPIO_Pin_5},  {GPIOA, GPIO_Pin_6},  {GPIOA, GPIO_Pin_7}},
-    {SPI2, RCC_APB1Periph_SPI2, {GPIOB, GPIO_Pin_12}, {GPIOB, GPIO_Pin_13}, {GPIOB, GPIO_Pin_14}, {GPIOB, GPIO_Pin_15}},
+    {SPI1, BUS_APB2, RCC_APB2Periph_SPI1, {GPIOA, GPIO_Pin_4},  {GPIOA, GPIO_Pin_5},  {GPIOA, GPIO_Pin_6},  {GPIOA, GPIO_Pin_7}},
+    {SPI2, BUS_APB1, RCC_APB1Periph_SPI2, {GPIOB, GPIO_Pin_12}, {GPIOB, GPIO_Pin_13}, {GPIOB, GPIO_Pin_14}, {GPIOB, GPIO_Pin_15}},
 };
 
 static const struct spi_hardware_info *spi_hardware_info_find(const SPI_TypeDef *spi)
@@ -98,10 +99,7 @@ static bool spi_hardware_init(const struct spi_hardware *spi)
             || !gpio_pin_init(&info->mosi, GPIO_Mode_AF_PP))
         return false;
 
-    if (info->periph == RCC_APB2Periph_SPI1)
-        abp2_periph_enable(info->periph);
-    else
-        abp1_periph_enable(info->periph);
+    rcc_enable(info->bus, info->periph);
 
     SPI_StructInit(&init_def);
     init_def.SPI_Mode = SPI_Mode_Master;

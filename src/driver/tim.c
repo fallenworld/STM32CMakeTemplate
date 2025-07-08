@@ -1,5 +1,5 @@
 /*
- * STM32 timer helper functions.
+ * TIM driver functions.
  */
 
 #include "stm32.h"
@@ -90,7 +90,7 @@ static void timer_time_base_init(const struct timer_info *timer_info,
 {
     TIM_TimeBaseInitTypeDef timer_init_def;
 
-    abp1_periph_enable(timer_info->periph);
+    rcc_enable(BUS_APB1, timer_info->periph);
 
     switch (time_source)
     {

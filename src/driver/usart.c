@@ -1,5 +1,5 @@
 /*
- * STM32 USART helper functions.
+ * USART driver functions.
  *
  * View the contents of the serial port on Linux:
  * stty -F /dev/ttyACM0 raw 9600 cs8 -cstopb -parenb -crtscts -echo && cat /dev/ttyACM0
@@ -11,6 +11,7 @@ struct usart_info
 {
     USART_TypeDef *usart;
     const char *name;
+    uint32_t bus;
     uint32_t periph;
     enum IRQn irqn;
     struct gpio_pin tx_pin, rx_pin;
@@ -18,8 +19,8 @@ struct usart_info
 
 static const struct usart_info usart_info_list[] =
 {
-    {USART1, "USART1", RCC_APB2Periph_USART1, USART1_IRQn, {GPIOA, GPIO_Pin_9}, {GPIOA, GPIO_Pin_10}},
-    {USART2, "USART2", RCC_APB1Periph_USART2, USART2_IRQn, {GPIOA, GPIO_Pin_2}, {GPIOA, GPIO_Pin_3}},
+    {USART1, "USART1", BUS_APB2, RCC_APB2Periph_USART1, USART1_IRQn, {GPIOA, GPIO_Pin_9}, {GPIOA, GPIO_Pin_10}},
+    {USART2, "USART2", BUS_APB1, RCC_APB1Periph_USART2, USART2_IRQn, {GPIOA, GPIO_Pin_2}, {GPIOA, GPIO_Pin_3}},
 };
 
 const struct usart_info *usart_info_find(const USART_TypeDef *usart)
@@ -60,10 +61,7 @@ bool usart_init(USART_TypeDef *usart,
         return false;
     }
 
-    if (usart == USART1)
-        abp2_periph_enable(usart_info->periph);
-    else
-        abp1_periph_enable(usart_info->periph);
+    rcc_enable(usart_info->bus, usart_info->periph);
 
     usart_init_def.USART_BaudRate = baud_rate;
     usart_init_def.USART_WordLength = word_length;
