@@ -24,10 +24,12 @@
 #define TEST_RTC (1 << 12)
 #define TEST_CLOCK_FREQ (1 << 13)
 #define TEST_SLEEP_MODE (1 << 14)
+#define TEST_STOP_MODE (1 << 15)
 
 
 static char usart1_recv_buffer[64];
 static uint8_t usart1_recv_size = 0;
+static bool exti_triggered = 0;
 
 void usart1_recv_handler(void)
 {
@@ -36,13 +38,26 @@ void usart1_recv_handler(void)
 
 void exti_irq_handler(void)
 {
-    if (GPIO_ReadInputDataBit(GPIOB, GPIO_Pin_9) == 0)
-        TRACE("Trigger falling edge on PB9.\n");
+    if (GPIO_ReadInputDataBit(GPIOA, GPIO_Pin_5) == 0)
+        exti_triggered = true;
 }
 
 static void test_exti(void)
 {
-    exti_init(GPIOB, GPIO_Pin_9, exti_irq_handler, EXTI_Trigger_Falling, 1, 1);
+    exti_init(GPIOA, GPIO_Pin_5, exti_irq_handler, EXTI_Trigger_Falling, 1, 1);
+
+    while (1)
+    {
+        printf("Hi!\n");
+
+        if (exti_triggered)
+        {
+            printf("Trigger EXTI.\n");
+            exti_triggered = false;
+        }
+
+        delay_ms(500);
+    }
 }
 
 static void test_encoder(void)
@@ -259,7 +274,6 @@ static void test_rtc(void)
     }
 }
 
-
 static void test_clock_freq(void)
 {
     /* Change SYSCLK_FREQ_XXX defines in system_stm32f10x.c to change clock frequency. */
@@ -291,6 +305,33 @@ static void test_sleep_mode(void)
     }
 }
 
+static void test_stop_mode(void)
+{
+    exti_init(GPIOA, GPIO_Pin_5, exti_irq_handler, EXTI_Trigger_Falling, 1, 1);
+
+    /* Enable the PWR clock before calling PWR functions. */
+    rcc_enable(BUS_APB1, RCC_APB1Periph_PWR);
+
+    while (1)
+    {
+        /* Delay to make sure USART has sent all chars before entering stop mode. */
+        delay_ms(100);
+
+        /* System clock will be set to HSI after resuming from stop mode.
+         * So we need to call SystemInit() here to reset it to HSE. */
+        PWR_EnterSTOPMode(PWR_Regulator_ON, PWR_STOPEntry_WFI);
+        SystemInit();
+
+        printf("Hi!\n");
+
+        if (exti_triggered)
+        {
+            printf("Trigger EXTI.\n");
+            exti_triggered = false;
+        }
+    }
+}
+
 int main(void)
 {
     uint32_t test_case;
@@ -298,7 +339,7 @@ int main(void)
     NVIC_PriorityGroupConfig(NVIC_PriorityGroup_2);
     debug_init(USART1, DEBUG_LED_GPIO, DEBUG_LED_PIN);
 
-    test_case = TEST_SLEEP_MODE;
+    test_case = TEST_STOP_MODE;
 
     if (test_case & TEST_EXTI)
         test_exti();
@@ -330,6 +371,8 @@ int main(void)
         test_clock_freq();
     if (test_case & TEST_SLEEP_MODE)
         test_sleep_mode();
+    if (test_case & TEST_STOP_MODE)
+        test_stop_mode();
 
     return 0; /* Should never be here. */
 }
