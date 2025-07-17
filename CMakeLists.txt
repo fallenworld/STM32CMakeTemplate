@@ -60,7 +60,6 @@ include_directories(
 
 set(LIBRARY_SOURCES
         ${STD_PERIPH_LIB}/Libraries/CMSIS/CM3/CoreSupport/core_cm3.c
-        ${STD_PERIPH_LIB}/Libraries/CMSIS/CM3/DeviceSupport/ST/STM32F10x/system_stm32f10x.c
         ${STD_PERIPH_LIB}/Libraries/CMSIS/CM3/DeviceSupport/ST/STM32F10x/startup/TrueSTUDIO/${STARTUP_CODE}
         ${STD_PERIPH_LIB}/Libraries/STM32F10x_StdPeriph_Driver/src/misc.c
         ${STD_PERIPH_LIB}/Libraries/STM32F10x_StdPeriph_Driver/src/stm32f10x_adc.c
@@ -99,6 +98,7 @@ set(USER_SOURCES
         src/driver/rtc.c
         src/driver/spi.c
         src/driver/syscalls.c
+        src/driver/system_stm32f10x.c
         src/driver/usart.c
 
         # Devices.

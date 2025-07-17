@@ -22,6 +22,7 @@
 #define TEST_SPI_HARDWARE (1 << 10)
 #define TEST_BKP (1 << 11)
 #define TEST_RTC (1 << 12)
+#define TEST_CLOCK_FREQ (1 << 13)
 
 
 void exti_irq_handler(void)
@@ -225,7 +226,7 @@ void test_spi_hardware(void)
     while (1) {}
 }
 
-void test_bkp()
+void test_bkp(void)
 {
     uint16_t data;
     bkp_init();
@@ -235,13 +236,24 @@ void test_bkp()
     while (1) {}
 }
 
-void test_rtc()
+void test_rtc(void)
 {
     rtc_init(0);
     while (1)
     {
         printf("RTC counter: %lu.\n", RTC_GetCounter());
         delay_ms(200);
+    }
+}
+
+void test_clock_freq(void)
+{
+    /* Change SYSCLK_FREQ_XXX defines in system_stm32f10x.c to change clock frequency. */
+    printf("System clock frequency: %lu.\n", SystemCoreClock);
+    while (1)
+    {
+        delay_ms(1000);
+        printf("Bling!\n");
     }
 }
 
@@ -252,7 +264,7 @@ int main(void)
     NVIC_PriorityGroupConfig(NVIC_PriorityGroup_2);
     debug_init(USART1, DEBUG_LED_GPIO, DEBUG_LED_PIN);
 
-    test_case = TEST_RTC;
+    test_case = TEST_CLOCK_FREQ;
 
     if (test_case & TEST_EXTI)
         test_exti();
@@ -280,6 +292,8 @@ int main(void)
         test_bkp();
     if (test_case & TEST_RTC)
         test_rtc();
+    if (test_case & TEST_CLOCK_FREQ)
+        test_clock_freq();
 
     return 0; /* Should never be here. */
 }
