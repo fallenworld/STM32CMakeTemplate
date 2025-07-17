@@ -95,7 +95,7 @@ set(USER_SOURCES
         src/driver/i2c.c
         src/driver/irq_handlers.c
         src/driver/tim.c
-        src/driver/rtc.c
+        src/driver/pwr.c
         src/driver/spi.c
         src/driver/syscalls.c
         src/driver/system_stm32f10x.c

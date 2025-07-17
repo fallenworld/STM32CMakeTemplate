@@ -25,6 +25,7 @@
 #define TEST_CLOCK_FREQ (1 << 13)
 #define TEST_SLEEP_MODE (1 << 14)
 #define TEST_STOP_MODE (1 << 15)
+#define TEST_STANDBY_MODE (1 << 16)
 
 
 static char usart1_recv_buffer[64];
@@ -292,7 +293,7 @@ static void test_sleep_mode(void)
 
     while (1)
     {
-        __WFI();
+        pwr_sleep(PWR_WFI);
 
         usart_send_str(USART1, "Hi!\n");
 
@@ -317,10 +318,7 @@ static void test_stop_mode(void)
         /* Delay to make sure USART has sent all chars before entering stop mode. */
         delay_ms(100);
 
-        /* System clock will be set to HSI after resuming from stop mode.
-         * So we need to call SystemInit() here to reset it to HSE. */
-        PWR_EnterSTOPMode(PWR_Regulator_ON, PWR_STOPEntry_WFI);
-        SystemInit();
+        pwr_stop(false, PWR_WFI);
 
         printf("Hi!\n");
 
@@ -332,6 +330,34 @@ static void test_stop_mode(void)
     }
 }
 
+void test_standby_mode(void)
+{
+    uint16_t rtc_inited_magic = 0xdead;
+    uint32_t alarm;
+
+    bkp_init();
+    if (BKP_ReadBackupRegister(BKP_DR1) != rtc_inited_magic)
+    {
+        rtc_init(0);
+        BKP_WriteBackupRegister(BKP_DR1, rtc_inited_magic);
+    }
+    else
+    {
+        rtc_simple_init();
+    }
+
+    alarm = RTC_GetCounter() + 3;
+    RTC_SetAlarm(alarm);
+
+    while (1)
+    {
+        delay_ms(500);
+        printf("RTC counter: %lu, alarm: %lu, RTC_FLAG_ALR %d.\n",
+                RTC_GetCounter(), alarm, RTC_GetFlagStatus(RTC_FLAG_ALR));
+        pwr_standby();
+    }
+}
+
 int main(void)
 {
     uint32_t test_case;
@@ -339,7 +365,7 @@ int main(void)
     NVIC_PriorityGroupConfig(NVIC_PriorityGroup_2);
     debug_init(USART1, DEBUG_LED_GPIO, DEBUG_LED_PIN);
 
-    test_case = TEST_STOP_MODE;
+    test_case = TEST_STANDBY_MODE;
 
     if (test_case & TEST_EXTI)
         test_exti();
@@ -373,6 +399,8 @@ int main(void)
         test_sleep_mode();
     if (test_case & TEST_STOP_MODE)
         test_stop_mode();
+    if (test_case & TEST_STANDBY_MODE)
+        test_standby_mode();
 
     return 0; /* Should never be here. */
 }

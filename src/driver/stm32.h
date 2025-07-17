@@ -153,9 +153,16 @@ void spi_start(struct device *spi);
 void spi_stop(struct device *spi);
 uint8_t spi_read_write(struct device *spi, uint8_t data);
 
-/* RTC & BKP. */
+/* PWR & BKP & RTC. */
+#define PWR_WFI PWR_STOPEntry_WFI
+#define PWR_WFE PWR_STOPEntry_WFE
+
+void pwr_sleep(uint32_t mode);
+void pwr_stop(bool low_power, uint32_t mode);
+void pwr_standby(void);
 void bkp_init(void);
 void rtc_init(uint32_t initial_count);
+void rtc_simple_init(void);
 
 /* Interrupt handlers. */
 bool exti_set_handler(uint32_t exti_line, irq_handler handler);
