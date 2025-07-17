@@ -23,7 +23,16 @@
 #define TEST_BKP (1 << 11)
 #define TEST_RTC (1 << 12)
 #define TEST_CLOCK_FREQ (1 << 13)
+#define TEST_SLEEP_MODE (1 << 14)
 
+
+static char usart1_recv_buffer[64];
+static uint8_t usart1_recv_size = 0;
+
+void usart1_recv_handler(void)
+{
+    usart1_recv_buffer[usart1_recv_size++] = USART_ReceiveData(USART1);
+}
 
 void exti_irq_handler(void)
 {
@@ -31,18 +40,12 @@ void exti_irq_handler(void)
         TRACE("Trigger falling edge on PB9.\n");
 }
 
-void usart_receive_handler(void)
-{
-    /* FIXME: Instead of handling data in irq handler, it's better to push data to a buffer, and set a flag. */
-    putchar(USART_ReceiveData(USART1));
-}
-
-void test_exti(void)
+static void test_exti(void)
 {
     exti_init(GPIOB, GPIO_Pin_9, exti_irq_handler, EXTI_Trigger_Falling, 1, 1);
 }
 
-void test_encoder(void)
+static void test_encoder(void)
 {
     encoder_init(TIM3);
     while (1)
@@ -52,7 +55,7 @@ void test_encoder(void)
     }
 }
 
-void test_pwmi(void)
+static void test_pwmi(void)
 {
     timer_pwm_init(TIM2, TIM_Channel_1, 1000, 100);
     timer_pwm_set_pulse(TIM2, TIM_Channel_1, 16);
@@ -66,7 +69,7 @@ void test_pwmi(void)
     }
 }
 
-void test_adc(void)
+static void test_adc(void)
 {
     adc_single_init(ADC1);
     adc_init_channel(ADC1, ADC_Channel_2);
@@ -78,7 +81,7 @@ void test_adc(void)
     }
 }
 
-void test_dma(void)
+static void test_dma(void)
 {
     uint32_t src[4] = {1, 2, 3, 4}, dst[4] = {0};
     unsigned int i;
@@ -103,7 +106,7 @@ void test_dma(void)
     }
 }
 
-void test_adc_dma(void)
+static void test_adc_dma(void)
 {
     uint16_t adc_value[2];
 
@@ -119,17 +122,27 @@ void test_adc_dma(void)
     }
 }
 
-void test_usart(void)
+static void test_usart(void)
 {
-    usart_init(USART1, 9600, USART_WordLength_8b, USART_StopBits_1, USART_Parity_No, usart_receive_handler);
+    usart_init(USART1, 9600, USART_WordLength_8b, USART_StopBits_1, USART_Parity_No, usart1_recv_handler);
+    memset(usart1_recv_buffer, 0, sizeof(usart1_recv_buffer));
+
     while (1)
     {
         usart_send_str(USART1, "Hi!\n");
+
+        if (usart1_recv_size != 0 && usart1_recv_buffer[usart1_recv_size - 1] == '\n')
+        {
+            printf("Received: %s", usart1_recv_buffer);
+            memset(usart1_recv_buffer, 0, sizeof(usart1_recv_buffer));
+            usart1_recv_size = 0;
+        };
+
         delay_ms(1000);
     }
 }
 
-void test_software_i2c(void)
+static void test_software_i2c(void)
 {
     struct i2c_device device;
 
@@ -152,7 +165,7 @@ void test_software_i2c(void)
     }
 }
 
-void test_hardware_i2c(void)
+static void test_hardware_i2c(void)
 {
     struct i2c_device device;
 
@@ -172,7 +185,7 @@ void test_hardware_i2c(void)
     }
 }
 
-void test_spi_software(void)
+static void test_spi_software(void)
 {
     struct spi_software spi;
     uint32_t addr = 0x1000;
@@ -202,7 +215,7 @@ void test_spi_software(void)
     while (1) {}
 }
 
-void test_spi_hardware(void)
+static void test_spi_hardware(void)
 {
     const char *data = "Im your father.";
     struct spi_hardware spi;
@@ -226,7 +239,7 @@ void test_spi_hardware(void)
     while (1) {}
 }
 
-void test_bkp(void)
+static void test_bkp(void)
 {
     uint16_t data;
     bkp_init();
@@ -236,7 +249,7 @@ void test_bkp(void)
     while (1) {}
 }
 
-void test_rtc(void)
+static void test_rtc(void)
 {
     rtc_init(0);
     while (1)
@@ -246,7 +259,8 @@ void test_rtc(void)
     }
 }
 
-void test_clock_freq(void)
+
+static void test_clock_freq(void)
 {
     /* Change SYSCLK_FREQ_XXX defines in system_stm32f10x.c to change clock frequency. */
     printf("System clock frequency: %lu.\n", SystemCoreClock);
@@ -257,6 +271,26 @@ void test_clock_freq(void)
     }
 }
 
+static void test_sleep_mode(void)
+{
+    usart_init(USART1, 9600, USART_WordLength_8b, USART_StopBits_1, USART_Parity_No, usart1_recv_handler);
+    memset(usart1_recv_buffer, 0, sizeof(usart1_recv_buffer));
+
+    while (1)
+    {
+        __WFI();
+
+        usart_send_str(USART1, "Hi!\n");
+
+        if (usart1_recv_size != 0 && usart1_recv_buffer[usart1_recv_size - 1] == '\n')
+        {
+            printf("Received: %s", usart1_recv_buffer);
+            memset(usart1_recv_buffer, 0, sizeof(usart1_recv_buffer));
+            usart1_recv_size = 0;
+        };
+    }
+}
+
 int main(void)
 {
     uint32_t test_case;
@@ -264,7 +298,7 @@ int main(void)
     NVIC_PriorityGroupConfig(NVIC_PriorityGroup_2);
     debug_init(USART1, DEBUG_LED_GPIO, DEBUG_LED_PIN);
 
-    test_case = TEST_CLOCK_FREQ;
+    test_case = TEST_SLEEP_MODE;
 
     if (test_case & TEST_EXTI)
         test_exti();
@@ -294,6 +328,8 @@ int main(void)
         test_rtc();
     if (test_case & TEST_CLOCK_FREQ)
         test_clock_freq();
+    if (test_case & TEST_SLEEP_MODE)
+        test_sleep_mode();
 
     return 0; /* Should never be here. */
 }
