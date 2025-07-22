@@ -164,6 +164,17 @@ void bkp_init(void);
 void rtc_init(uint32_t initial_count);
 void rtc_simple_init(void);
 
+/* FLASH.*/
+#define flash_read_32(addr) (*(__IO uint32_t *)(addr))
+#define flash_read_16(addr) (*(__IO uint16_t *)(addr))
+#define flash_read_8(addr)  (*(__IO uint8_t *)(addr))
+uint16_t flash_get_size(void);
+void flash_get_device_id(uint32_t *id_low, uint32_t *id_mid, uint32_t *id_high);
+void flash_write_16(uint32_t addr, uint16_t data);
+void flash_write_32(uint32_t addr, uint32_t data);
+void flash_erase_page(uint32_t addr);
+void flash_erase_all(void);
+
 /* Interrupt handlers. */
 bool exti_set_handler(uint32_t exti_line, irq_handler handler);
 bool usart_set_handler(USART_TypeDef *usart, irq_handler handler);

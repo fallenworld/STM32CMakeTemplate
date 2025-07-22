@@ -91,6 +91,7 @@ set(USER_SOURCES
         src/driver/adc.c
         src/driver/debug.c
         src/driver/dma.c
+        src/driver/flash.c
         src/driver/gpio.c
         src/driver/i2c.c
         src/driver/irq_handlers.c

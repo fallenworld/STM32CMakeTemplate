@@ -26,7 +26,7 @@
 #define TEST_SLEEP_MODE (1 << 14)
 #define TEST_STOP_MODE (1 << 15)
 #define TEST_STANDBY_MODE (1 << 16)
-
+#define TEST_FLASH (1<< 17)
 
 static char usart1_recv_buffer[64];
 static uint8_t usart1_recv_size = 0;
@@ -358,6 +358,41 @@ void test_standby_mode(void)
     }
 }
 
+void test_flash(void)
+{
+    uint32_t addr = 0x800FC00, data0 = 0x123456, data1 = 0xfedcba, id_low, id_mid, id_high;
+
+    gpio_init(GPIOA, GPIO_Pin_0, GPIO_Mode_IPU);
+
+    printf("Flash size: %uKB.\n", flash_get_size());
+    flash_get_device_id(&id_low, &id_mid, &id_high);
+    printf("Device ID: %#lx, %#lx, %#lx.\n", id_low, id_mid, id_high);
+
+
+    while (1)
+    {
+
+        if (GPIO_ReadInputDataBit(GPIOA, GPIO_Pin_0) == 0)
+        {
+            delay_ms(20);
+            while (GPIO_ReadInputDataBit(GPIOA, GPIO_Pin_0) == 0) {}
+            delay_ms(20);
+
+            flash_erase_page(addr);
+            flash_write_32(addr, data0);
+            flash_write_32(addr + 4, data1);
+            printf("Wrote %#lx to %#lx, %#lx to %#lx.\n",
+                    data0, addr, data1, addr + 4);
+
+            ++data0;
+            ++data1;
+        }
+
+        printf("%#lx: %#lx, %#lx: %#lx.\n", addr, flash_read_32(addr), addr + 4, flash_read_32(addr + 4));
+        delay_ms(1000);
+    }
+}
+
 int main(void)
 {
     uint32_t test_case;
@@ -365,7 +400,7 @@ int main(void)
     NVIC_PriorityGroupConfig(NVIC_PriorityGroup_2);
     debug_init(USART1, DEBUG_LED_GPIO, DEBUG_LED_PIN);
 
-    test_case = TEST_STANDBY_MODE;
+    test_case = TEST_FLASH;
 
     if (test_case & TEST_EXTI)
         test_exti();
@@ -401,6 +436,8 @@ int main(void)
         test_stop_mode();
     if (test_case & TEST_STANDBY_MODE)
         test_standby_mode();
+    if (test_case & TEST_FLASH)
+        test_flash();
 
     return 0; /* Should never be here. */
 }
